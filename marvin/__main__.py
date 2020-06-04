@@ -1,13 +1,45 @@
 import os
 
+import aiohttp
 from aiohttp import web
+from gidgethub import aiohttp as gh_aiohttp
+from gidgethub import routing
+from gidgethub import sansio
 
+router = routing.Router()
 routes = web.RouteTableDef()
 
+BOT_NAME = "marvin-mk2"
+# secrets and configurations configured through the environment
+WEBHOOK_SECRET = os.environ["WEBHOOK_SECRET"]
+GH_OAUTH_TOKEN = os.environ["GH_TOKEN"]
 
-@routes.get("/")
+
+@router.register("issue_comment", action="created")
+async def issue_opened_event(event, gh, *args, **kwargs):
+    """Echo back any issue comments"""
+    url = event.data["issue"]["comments_url"]
+    comment_text = event.data["comment"]["body"]
+    reply_text = f"Echo!\n{comment_text}"
+    await gh.post(url, data={"body": reply_text})
+
+
+@routes.post("/")
 async def main(request):
-    return web.Response(status=200, text="Hello world!")
+    # read the GitHub webhook payload
+    body = await request.read()
+
+    # parse the event
+    event = sansio.Event.from_http(request.headers, body, secret=WEBHOOK_SECRET)
+
+    async with aiohttp.ClientSession() as session:
+        gh = gh_aiohttp.GitHubAPI(session, BOT_NAME, oauth_token=GH_OAUTH_TOKEN)
+
+        # call the appropriate callback for the event
+        await router.dispatch(event, gh)
+
+    # HTTP success
+    return web.Response(status=200)
 
 
 if __name__ == "__main__":
