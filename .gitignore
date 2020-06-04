@@ -1,0 +1,11 @@
+# python artefacts
+__pycache__/
+*$py.class
+
+# virtualenv
+.venv
+venv/
+ENV/
+
+# misc
+/.pytest_cache/
