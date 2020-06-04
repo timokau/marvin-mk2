@@ -12,4 +12,6 @@
     gidgethub
   ]);
   pkgs = pkgs;
+  # git ls-remote https://github.com/cachix/pre-commit-hooks.nix master
+  nix-pre-commit-hooks = import (builtins.fetchTarball "https://github.com/cachix/pre-commit-hooks.nix/tarball/f709c4652d4696dbe7c6a8354ebd5938f2bf807b");
 }
