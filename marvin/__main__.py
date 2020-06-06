@@ -18,6 +18,7 @@ GH_OAUTH_TOKEN = os.environ.get("GH_TOKEN")
 ISSUE_STATE_COMMANDS = {
     "needs review": "needs_review",
     "needs work": "needs_work",
+    "needs merge": "needs_merge",
 }
 
 
