@@ -91,82 +91,96 @@ async def clear_state(issue, gh):
         await gh.delete(issue["url"] + "/labels/" + label)
 
 
-@router.register("issues", action="opened")
-async def issue_open_event(event, gh, *args, **kwargs):
+async def handle_new_pr(pull_request, gh):
     """React to new issues"""
-    comment_text = event.data["issue"]["body"]
+    comment_text = pull_request["body"]
+    # If pull_request actually is a pull_request, we have to query issue_url.
+    # If its an issue, we have to use "url".
+    issue_url = pull_request.get("issue_url", pull_request["url"])
+    add_labels_url = issue_url + "/labels"
     # Only handle one command for now, since a command can modify the issue and
     # we'd need to keep track of that.
     for command in find_commands(comment_text)[:1]:
         if command == "needs work":
             await gh.post(
-                event.data["issue"]["url"] + "/labels", data={"labels": ["marvin"]},
+                add_labels_url, data={"labels": ["marvin"]},
             )
             await gh.post(
-                event.data["issue"]["url"] + "/labels",
+                issue_url + "/labels",
                 data={"labels": [ISSUE_STATE_COMMANDS["needs work"]]},
             )
-            await gh.post(
-                event.data["issue"]["comments_url"], data={"body": GREETING_WORK}
-            )
+            await gh.post(pull_request["comments_url"], data={"body": GREETING_WORK})
         elif command == "needs review":
             await gh.post(
-                event.data["issue"]["url"] + "/labels", data={"labels": ["marvin"]},
+                add_labels_url, data={"labels": ["marvin"]},
             )
             await gh.post(
-                event.data["issue"]["url"] + "/labels",
+                add_labels_url,
                 data={"labels": [ISSUE_STATE_COMMANDS["needs review"]]},
             )
-            await gh.post(
-                event.data["issue"]["comments_url"], data={"body": GREETING_REVIEW}
-            )
+            await gh.post(pull_request["comments_url"], data={"body": GREETING_REVIEW})
         else:
             await gh.post(
-                event.data["issue"]["comments_url"], data={"body": UNKNOWN_COMMAND_TEXT}
+                pull_request["comments_url"], data={"body": UNKNOWN_COMMAND_TEXT}
             )
 
 
-@router.register("issue_comment", action="created")
-async def issue_comment_event(event, gh, *args, **kwargs):
+async def handle_comment(comment, issue, gh):
     """React to issue comments"""
-    comment_text = event.data["comment"]["body"]
-    comment_author_login = event.data["comment"]["user"]["login"]
+    comment_text = comment["body"]
+    comment_author_login = comment["user"]["login"]
     if comment_author_login == BOT_NAME:
         return
 
     # check opt-in
-    if "marvin" not in {label["name"] for label in event.data["issue"]["labels"]}:
+    if "marvin" not in {label["name"] for label in issue["labels"]}:
         return
 
     # Only handle one command for now, since a command can modify the issue and
     # we'd need to keep track of that.
     for command in find_commands(comment_text)[:1]:
         if command == "echo":
-            comment_text = event.data["comment"]["body"]
+            comment_text = comment["body"]
             reply_text = f"Echo!\n{comment_text}"
-            await gh.post(
-                event.data["issue"]["comments_url"], data={"body": reply_text}
-            )
+            await gh.post(issue["comments_url"], data={"body": reply_text})
         elif command == "agree with me":
             # https://developer.github.com/v3/reactions/#reaction-types For
             # some reason reactions have been in "beta" since 2016. We need to
             # opt in with the accept header.
             # https://developer.github.com/changes/2016-05-12-reactions-api-preview/
             await gh.post(
-                event.data["comment"]["url"] + "/reactions",
+                comment["url"] + "/reactions",
                 data={"content": "+1"},
                 accept="application/vnd.github.squirrel-girl-preview+json",
             )
         elif command in ISSUE_STATE_COMMANDS:
-            await clear_state(event.data["issue"], gh)
+            await clear_state(issue, gh)
             await gh.post(
-                event.data["issue"]["url"] + "/labels",
+                issue["url"] + "/labels",
                 data={"labels": [ISSUE_STATE_COMMANDS[command]]},
             )
         else:
-            await gh.post(
-                event.data["issue"]["comments_url"], data={"body": UNKNOWN_COMMAND_TEXT}
-            )
+            await gh.post(issue["comments_url"], data={"body": UNKNOWN_COMMAND_TEXT})
+
+
+# Work on issues too for easier testing.
+@router.register("issues", action="opened")
+async def issue_open_event(event, gh, *args, **kwargs):
+    await handle_new_pr(event.data["issue"], gh)
+
+
+@router.register("issue_comment", action="created")
+async def issue_comment_event(event, gh, *args, **kwargs):
+    await handle_comment(event.data["comment"], event.data["issue"], gh)
+
+@router.register("pull_request_review_comment", action="created")
+async def pull_request_review_comment_event(event, gh, *args, **kwargs):
+    await handle_comment(event.data["comment"], event.data["pull_request"], gh)
+
+
+@router.register("pull_request", action="opened")
+async def pull_request_open_event(event, gh, *args, **kwargs):
+    await handle_new_pr(event.data["pull_request"], gh)
 
 
 @routes.post("/")
