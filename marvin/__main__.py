@@ -16,7 +16,7 @@ GH_OAUTH_TOKEN = os.environ.get("GH_TOKEN")
 
 
 @router.register("issue_comment", action="created")
-async def issue_opened_event(event, gh, *args, **kwargs):
+async def issue_comment_event(event, gh, *args, **kwargs):
     """Echo back any issue comments"""
     url = event.data["issue"]["comments_url"]
     comment_author_login = event.data["comment"]["user"]["login"]
