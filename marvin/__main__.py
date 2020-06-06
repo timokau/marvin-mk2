@@ -15,15 +15,41 @@ WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET")
 GH_OAUTH_TOKEN = os.environ.get("GH_TOKEN")
 
 
+def find_commands(comment_text):
+    r"""Filters a comment for commands.
+
+    >>> find_commands("This is a comment without a command.")
+    []
+    >>> find_commands("This includes a command, but with the wrong mention.\n@marvin-mk3 command")
+    []
+    >>> find_commands("This includes a proper command.\n@marvin-mk2 command with multiple words")
+    ['command with multiple words']
+    >>> find_commands("@marvin-mk2 @marvin-mk2 test\n@marvin-mk3 asdf\n@marvin-mk2 another  ")
+    ['@marvin-mk2 test', 'another']
+    """
+
+    commands = []
+    for line in comment_text.splitlines():
+        prefix = f"@{BOT_NAME}"
+        if line.startswith(f"@{BOT_NAME}"):
+            commands.append(line[len(prefix) :].strip())
+    return commands
+
+
 @router.register("issue_comment", action="created")
 async def issue_comment_event(event, gh, *args, **kwargs):
-    """Echo back any issue comments"""
+    """React to issue comments"""
     url = event.data["issue"]["comments_url"]
+    comment_text = event.data["comment"]["body"]
     comment_author_login = event.data["comment"]["user"]["login"]
-    if comment_author_login != BOT_NAME:
-        comment_text = event.data["comment"]["body"]
-        reply_text = f"Echo!\n{comment_text}"
-        await gh.post(url, data={"body": reply_text})
+    if comment_author_login == BOT_NAME:
+        return
+
+    for command in find_commands(comment_text):
+        if command == "echo":
+            comment_text = event.data["comment"]["body"]
+            reply_text = f"Echo!\n{comment_text}"
+            await gh.post(url, data={"body": reply_text})
 
 
 @routes.post("/")
