@@ -19,9 +19,11 @@ GH_OAUTH_TOKEN = os.environ["GH_TOKEN"]
 async def issue_opened_event(event, gh, *args, **kwargs):
     """Echo back any issue comments"""
     url = event.data["issue"]["comments_url"]
-    comment_text = event.data["comment"]["body"]
-    reply_text = f"Echo!\n{comment_text}"
-    await gh.post(url, data={"body": reply_text})
+    comment_author_login = event.data["comment"]["user"]["login"]
+    if comment_author_login != BOT_NAME:
+        comment_text = event.data["comment"]["body"]
+        reply_text = f"Echo!\n{comment_text}"
+        await gh.post(url, data={"body": reply_text})
 
 
 @routes.post("/")
