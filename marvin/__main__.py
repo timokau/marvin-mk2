@@ -63,6 +63,11 @@ async def issue_comment_event(event, gh, *args, **kwargs):
                 data={"content": "+1"},
                 accept="application/vnd.github.squirrel-girl-preview+json",
             )
+        elif command == "needs review":
+            await gh.post(
+                event.data["issue"]["url"] + "/labels",
+                data={"labels": ["needs_review"]},
+            )
 
 
 @routes.post("/")
