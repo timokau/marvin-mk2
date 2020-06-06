@@ -36,6 +36,10 @@ This will change the state to `needs_review`, which makes it easily discoverable
 If anything could be improved, do not hesitate to give [feedback](https://github.com/timokau/marvin-mk2/issues).
 """.strip()
 
+UNKNOWN_COMMAND_TEXT = f"""
+Sorry, I can't help you. Is there maybe a typo in your command?
+""".strip()
+
 
 # Unfortunately its not possible to directly listen for mentions
 # https://github.com/dear-github/dear-github/issues/294
@@ -88,6 +92,10 @@ async def issue_open_event(event, gh, *args, **kwargs):
             await gh.post(
                 event.data["issue"]["comments_url"], data={"body": GREETING_TEXT}
             )
+        else:
+            await gh.post(
+                event.data["issue"]["comments_url"], data={"body": UNKNOWN_COMMAND_TEXT}
+            )
 
 
 @router.register("issue_comment", action="created")
@@ -126,6 +134,10 @@ async def issue_comment_event(event, gh, *args, **kwargs):
             await gh.post(
                 event.data["issue"]["url"] + "/labels",
                 data={"labels": [ISSUE_STATE_COMMANDS[command]]},
+            )
+        else:
+            await gh.post(
+                event.data["issue"]["comments_url"], data={"body": UNKNOWN_COMMAND_TEXT}
             )
 
 
