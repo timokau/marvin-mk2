@@ -66,6 +66,10 @@ async def issue_open_event(event, gh, *args, **kwargs):
             await gh.post(
                 event.data["issue"]["url"] + "/labels", data={"labels": ["marvin"]},
             )
+            await gh.post(
+                event.data["issue"]["url"] + "/labels",
+                data={"labels": [ISSUE_STATE_COMMANDS["needs work"]]},
+            )
 
 
 @router.register("issue_comment", action="created")
