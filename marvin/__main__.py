@@ -21,6 +21,21 @@ ISSUE_STATE_COMMANDS = {
     "needs merge": "needs_merge",
 }
 
+GREETING_TEXT = f"""
+Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hopefully ending with a merge.
+
+I have initialized the PR in the `needs_work` state. This indicates that the PR is not finished yet or that there are outstanding change requests. If you think the PR is good as-is, you can tell me to switch the state as follows:
+
+@{BOT_NAME} needs review
+
+This will change the state to `needs_review`, which makes it easily discoverable by reviewers. Once a reviewer has looked at this, they can either
+- request changes and instruct me to switch the state back (@{BOT_NAME} needs work)
+- merge the PR if it looks good and they have the appropriate permission
+- switch the state to `needs_merge` (@{BOT_NAME} needs merge), which allows reviewers with merge permission to focus their reviews
+
+If anything could be improved, do not hesitate to give [feedback](https://github.com/timokau/marvin-mk2/issues).
+""".strip()
+
 
 # Unfortunately its not possible to directly listen for mentions
 # https://github.com/dear-github/dear-github/issues/294
@@ -69,6 +84,9 @@ async def issue_open_event(event, gh, *args, **kwargs):
             await gh.post(
                 event.data["issue"]["url"] + "/labels",
                 data={"labels": [ISSUE_STATE_COMMANDS["needs work"]]},
+            )
+            await gh.post(
+                event.data["issue"]["comments_url"], data={"body": GREETING_TEXT}
             )
 
 
