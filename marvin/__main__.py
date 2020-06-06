@@ -39,7 +39,6 @@ def find_commands(comment_text):
 @router.register("issue_comment", action="created")
 async def issue_comment_event(event, gh, *args, **kwargs):
     """React to issue comments"""
-    url = event.data["issue"]["comments_url"]
     comment_text = event.data["comment"]["body"]
     comment_author_login = event.data["comment"]["user"]["login"]
     if comment_author_login == BOT_NAME:
@@ -49,7 +48,19 @@ async def issue_comment_event(event, gh, *args, **kwargs):
         if command == "echo":
             comment_text = event.data["comment"]["body"]
             reply_text = f"Echo!\n{comment_text}"
-            await gh.post(url, data={"body": reply_text})
+            await gh.post(
+                event.data["issue"]["comments_url"], data={"body": reply_text}
+            )
+        elif command == "agree with me":
+            # https://developer.github.com/v3/reactions/#reaction-types For
+            # some reason reactions have been in "beta" since 2016. We need to
+            # opt in with the accept header.
+            # https://developer.github.com/changes/2016-05-12-reactions-api-preview/
+            await gh.post(
+                event.data["comment"]["url"] + "/reactions",
+                data={"content": "+1"},
+                accept="application/vnd.github.squirrel-girl-preview+json",
+            )
 
 
 @routes.post("/")
