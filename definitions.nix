@@ -10,6 +10,7 @@
   pythonenv = pkgs.python3.withPackages(ps: with ps; [
     aiohttp
     gidgethub
+    pytest
   ]);
   pkgs = pkgs;
   # git ls-remote https://github.com/cachix/pre-commit-hooks.nix master

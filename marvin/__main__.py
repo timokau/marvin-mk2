@@ -11,8 +11,8 @@ routes = web.RouteTableDef()
 
 BOT_NAME = "marvin-mk2"
 # secrets and configurations configured through the environment
-WEBHOOK_SECRET = os.environ["WEBHOOK_SECRET"]
-GH_OAUTH_TOKEN = os.environ["GH_TOKEN"]
+WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET")
+GH_OAUTH_TOKEN = os.environ.get("GH_TOKEN")
 
 
 @router.register("issue_comment", action="created")
