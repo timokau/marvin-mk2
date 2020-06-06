@@ -63,7 +63,9 @@ async def issue_comment_event(event, gh, *args, **kwargs):
     if comment_author_login == BOT_NAME:
         return
 
-    for command in find_commands(comment_text):
+    # Only handle one command for now, since a command can modify the issue and
+    # we'd need to keep track of that.
+    for command in find_commands(comment_text)[:1]:
         if command == "echo":
             comment_text = event.data["comment"]["body"]
             reply_text = f"Echo!\n{comment_text}"
