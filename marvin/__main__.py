@@ -21,20 +21,37 @@ ISSUE_STATE_COMMANDS = {
     "needs merge": "needs_merge",
 }
 
-GREETING_TEXT = f"""
+GREETING_FOOTER = f"""
+
+Once a reviewer has looked at this, they can either
+- request changes and instruct me to switch the state back (@{BOT_NAME} needs work)
+- merge the PR if it looks good and they have the appropriate permission
+- switch the state to `needs_merge` (@{BOT_NAME} needs merge), which allows reviewers with merge permission to focus their reviews
+
+If anything could be improved, do not hesitate to give [feedback](https://github.com/timokau/marvin-mk2/issues).
+""".rstrip()
+
+GREETING_WORK = (
+    f"""
 Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hopefully ending with a merge.
 
 I have initialized the PR in the `needs_work` state. This indicates that the PR is not finished yet or that there are outstanding change requests. If you think the PR is good as-is, you can tell me to switch the state as follows:
 
 @{BOT_NAME} needs review
 
-This will change the state to `needs_review`, which makes it easily discoverable by reviewers. Once a reviewer has looked at this, they can either
-- request changes and instruct me to switch the state back (@{BOT_NAME} needs work)
-- merge the PR if it looks good and they have the appropriate permission
-- switch the state to `needs_merge` (@{BOT_NAME} needs merge), which allows reviewers with merge permission to focus their reviews
-
-If anything could be improved, do not hesitate to give [feedback](https://github.com/timokau/marvin-mk2/issues).
+This will change the state to `needs_review`, which makes it easily discoverable by reviewers.
 """.strip()
+    + GREETING_FOOTER
+)
+
+GREETING_REVIEW = (
+    f"""
+Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hopefully ending with a merge.
+
+I have initialized the PR in the `needs_review` state. This indicates that you consider this PR good to go and makes it easily discoverable by reviewers.
+""".strip()
+    + GREETING_FOOTER
+)
 
 UNKNOWN_COMMAND_TEXT = f"""
 Sorry, I can't help you. Is there maybe a typo in your command?
@@ -81,7 +98,7 @@ async def issue_open_event(event, gh, *args, **kwargs):
     # Only handle one command for now, since a command can modify the issue and
     # we'd need to keep track of that.
     for command in find_commands(comment_text)[:1]:
-        if command == "opt in":
+        if command == "needs work":
             await gh.post(
                 event.data["issue"]["url"] + "/labels", data={"labels": ["marvin"]},
             )
@@ -90,7 +107,18 @@ async def issue_open_event(event, gh, *args, **kwargs):
                 data={"labels": [ISSUE_STATE_COMMANDS["needs work"]]},
             )
             await gh.post(
-                event.data["issue"]["comments_url"], data={"body": GREETING_TEXT}
+                event.data["issue"]["comments_url"], data={"body": GREETING_WORK}
+            )
+        elif command == "needs review":
+            await gh.post(
+                event.data["issue"]["url"] + "/labels", data={"labels": ["marvin"]},
+            )
+            await gh.post(
+                event.data["issue"]["url"] + "/labels",
+                data={"labels": [ISSUE_STATE_COMMANDS["needs review"]]},
+            )
+            await gh.post(
+                event.data["issue"]["comments_url"], data={"body": GREETING_REVIEW}
             )
         else:
             await gh.post(
