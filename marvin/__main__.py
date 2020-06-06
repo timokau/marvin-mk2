@@ -81,7 +81,7 @@ async def issue_comment_event(event, gh, *args, **kwargs):
                 accept="application/vnd.github.squirrel-girl-preview+json",
             )
         elif command in ISSUE_STATE_COMMANDS:
-            await clear_state(event.data["issue"])
+            await clear_state(event.data["issue"], gh)
             await gh.post(
                 event.data["issue"]["url"] + "/labels",
                 data={"labels": [ISSUE_STATE_COMMANDS[command]]},
