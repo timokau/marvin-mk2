@@ -15,6 +15,8 @@ WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET")
 GH_OAUTH_TOKEN = os.environ.get("GH_TOKEN")
 
 
+# Unfortunately its not possible to directly listen for mentions
+# https://github.com/dear-github/dear-github/issues/294
 def find_commands(comment_text):
     r"""Filters a comment for commands.
 
