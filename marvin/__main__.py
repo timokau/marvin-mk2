@@ -55,6 +55,19 @@ async def clear_state(issue, gh):
         await gh.delete(issue["url"] + "/labels/" + label)
 
 
+@router.register("issues", action="opened")
+async def issue_open_event(event, gh, *args, **kwargs):
+    """React to new issues"""
+    comment_text = event.data["issue"]["body"]
+    # Only handle one command for now, since a command can modify the issue and
+    # we'd need to keep track of that.
+    for command in find_commands(comment_text)[:1]:
+        if command == "opt in":
+            await gh.post(
+                event.data["issue"]["url"] + "/labels", data={"labels": ["marvin"]},
+            )
+
+
 @router.register("issue_comment", action="created")
 async def issue_comment_event(event, gh, *args, **kwargs):
     """React to issue comments"""
