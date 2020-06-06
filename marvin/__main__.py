@@ -76,6 +76,10 @@ async def issue_comment_event(event, gh, *args, **kwargs):
     if comment_author_login == BOT_NAME:
         return
 
+    # check opt-in
+    if "marvin" not in {label["name"] for label in event.data["issue"]["labels"]}:
+        return
+
     # Only handle one command for now, since a command can modify the issue and
     # we'd need to keep track of that.
     for command in find_commands(comment_text)[:1]:
