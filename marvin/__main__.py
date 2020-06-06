@@ -14,6 +14,12 @@ BOT_NAME = "marvin-mk2"
 WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET")
 GH_OAUTH_TOKEN = os.environ.get("GH_TOKEN")
 
+# map commands to mutually exclusive labels
+ISSUE_STATE_COMMANDS = {
+    "needs review": "needs_review",
+    "needs work": "needs_work",
+}
+
 
 # Unfortunately its not possible to directly listen for mentions
 # https://github.com/dear-github/dear-github/issues/294
@@ -36,6 +42,16 @@ def find_commands(comment_text):
         if line.startswith(f"@{BOT_NAME}"):
             commands.append(line[len(prefix) :].strip())
     return commands
+
+
+async def clear_state(issue, gh):
+    """Clears the state tag of an issue"""
+    labels = issue["labels"]
+    label_names = {label["name"] for label in labels}
+    # should never be more than one, but better to make it a set anyway
+    state_labels = label_names.intersection(ISSUE_STATE_COMMANDS.values())
+    for label in state_labels:
+        await gh.delete(issue["url"] + "/labels/" + label)
 
 
 @router.register("issue_comment", action="created")
@@ -63,10 +79,11 @@ async def issue_comment_event(event, gh, *args, **kwargs):
                 data={"content": "+1"},
                 accept="application/vnd.github.squirrel-girl-preview+json",
             )
-        elif command == "needs review":
+        elif command in ISSUE_STATE_COMMANDS:
+            await clear_state(event.data["issue"])
             await gh.post(
                 event.data["issue"]["url"] + "/labels",
-                data={"labels": ["needs_review"]},
+                data={"labels": [ISSUE_STATE_COMMANDS[command]]},
             )
 
 
