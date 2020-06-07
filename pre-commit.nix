@@ -35,5 +35,13 @@ in nix-pre-commit-hooks.run {
      entry = "${(pythonenv.withPackages (pkgs: with pkgs; [doc8]))}/bin/doc8";
      files = "\\.rst$";
    };
+
+   mypy = {
+     enable = true;
+     name = "mypy";
+     description = "For type checking";
+     entry = "${pythonenv}/bin/mypy";
+     types = ["python"];
+   };
  };
 }

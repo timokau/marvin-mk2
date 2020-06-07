@@ -1,4 +1,7 @@
 import os
+from typing import Any
+from typing import Dict
+from typing import List
 
 import aiohttp
 from aiohttp import web
@@ -60,7 +63,7 @@ Sorry, I can't help you. Is there maybe a typo in your command?
 
 # Unfortunately its not possible to directly listen for mentions
 # https://github.com/dear-github/dear-github/issues/294
-def find_commands(comment_text):
+def find_commands(comment_text: str) -> List[str]:
     r"""Filters a comment for commands.
 
     >>> find_commands("This is a comment without a command.")
@@ -81,7 +84,7 @@ def find_commands(comment_text):
     return commands
 
 
-async def clear_state(issue, gh):
+async def clear_state(issue: Dict[str, Any], gh: gh_aiohttp.GitHubAPI) -> None:
     """Clears the state tag of an issue"""
     labels = issue["labels"]
     label_names = {label["name"] for label in labels}
@@ -91,7 +94,7 @@ async def clear_state(issue, gh):
         await gh.delete(issue["url"] + "/labels/" + label)
 
 
-async def handle_new_pr(pull_request, gh):
+async def handle_new_pr(pull_request: Dict[str, Any], gh: gh_aiohttp.GitHubAPI) -> None:
     """React to new issues"""
     comment_text = pull_request["body"]
     # If pull_request actually is a pull_request, we have to query issue_url.
@@ -115,8 +118,7 @@ async def handle_new_pr(pull_request, gh):
                 add_labels_url, data={"labels": ["marvin"]},
             )
             await gh.post(
-                add_labels_url,
-                data={"labels": [ISSUE_STATE_COMMANDS["needs review"]]},
+                add_labels_url, data={"labels": [ISSUE_STATE_COMMANDS["needs review"]]},
             )
             await gh.post(pull_request["comments_url"], data={"body": GREETING_REVIEW})
         else:
@@ -125,7 +127,9 @@ async def handle_new_pr(pull_request, gh):
             )
 
 
-async def handle_comment(comment, issue, gh):
+async def handle_comment(
+    comment: Dict[str, Any], issue: Dict[str, Any], gh: gh_aiohttp.GitHubAPI
+) -> None:
     """React to issue comments"""
     comment_text = comment["body"]
     comment_author_login = comment["user"]["login"]
@@ -165,26 +169,35 @@ async def handle_comment(comment, issue, gh):
 
 # Work on issues too for easier testing.
 @router.register("issues", action="opened")
-async def issue_open_event(event, gh, *args, **kwargs):
+async def issue_open_event(
+    event: sansio.Event, gh: gh_aiohttp.GitHubAPI, *args: Any, **kwargs: Any
+) -> None:
     await handle_new_pr(event.data["issue"], gh)
 
 
 @router.register("issue_comment", action="created")
-async def issue_comment_event(event, gh, *args, **kwargs):
+async def issue_comment_event(
+    event: sansio.Event, gh: gh_aiohttp.GitHubAPI, *args: Any, **kwargs: Any
+) -> None:
     await handle_comment(event.data["comment"], event.data["issue"], gh)
 
+
 @router.register("pull_request_review_comment", action="created")
-async def pull_request_review_comment_event(event, gh, *args, **kwargs):
+async def pull_request_review_comment_event(
+    event: sansio.Event, gh: gh_aiohttp.GitHubAPI, *args: Any, **kwargs: Any
+) -> None:
     await handle_comment(event.data["comment"], event.data["pull_request"], gh)
 
 
 @router.register("pull_request", action="opened")
-async def pull_request_open_event(event, gh, *args, **kwargs):
+async def pull_request_open_event(
+    event: sansio.Event, gh: gh_aiohttp.GitHubAPI, *args: Any, **kwargs: Any
+) -> None:
     await handle_new_pr(event.data["pull_request"], gh)
 
 
 @routes.post("/")
-async def main(request):
+async def main(request: web.Request) -> web.Response:
     # read the GitHub webhook payload
     body = await request.read()
 
@@ -204,8 +217,8 @@ async def main(request):
 if __name__ == "__main__":
     app = web.Application()
     app.add_routes(routes)
-    port = os.environ.get("PORT")
-    if port is not None:
-        port = int(port)
+    port_str = os.environ.get("PORT")
+    if port_str is not None:
+        port = int(port_str)
 
     web.run_app(app, port=port)
