@@ -11,6 +11,7 @@
     aiohttp
     gidgethub
     pytest
+    mypy
   ]);
   pkgs = pkgs;
   # git ls-remote https://github.com/cachix/pre-commit-hooks.nix master
