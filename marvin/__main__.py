@@ -249,6 +249,9 @@ async def main(request: web.Request) -> web.Response:
         # call the appropriate callback for the event
         await router.dispatch(event, gh, installation_access_token["token"])
 
+    if gh.rate_limit is not None:
+        print("GH rate limit remaining:", gh.rate_limit.remaining)
+
     # HTTP success
     return web.Response(status=200)
 
