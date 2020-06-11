@@ -1,5 +1,4 @@
 import os
-import sys
 from typing import Any
 from typing import Dict
 from typing import List
@@ -14,11 +13,7 @@ from gidgethub import sansio
 router = routing.Router()
 routes = web.RouteTableDef()
 
-BOT_NAME = "marvin-mk2"
-# secrets and configurations configured through the environment
-WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET", "")
-GH_APP_ID = os.environ.get("GH_APP_ID", "")
-GH_PRIVATE_KEY = os.environ.get("GH_PRIVATE_KEY", "")
+BOT_NAME = os.environ.get("BOT_NAME", "marvin-mk2")
 
 # map commands to mutually exclusive labels
 ISSUE_STATE_COMMANDS = {
@@ -230,7 +225,9 @@ async def process_webhook(request: web.Request) -> web.Response:
     body = await request.read()
 
     # parse the event
-    event = sansio.Event.from_http(request.headers, body, secret=WEBHOOK_SECRET)
+    event = sansio.Event.from_http(
+        request.headers, body, secret=request.app["webhook_secret"]
+    )
 
     async with aiohttp.ClientSession() as session:
         gh = gh_aiohttp.GitHubAPI(session, BOT_NAME)
@@ -242,8 +239,8 @@ async def process_webhook(request: web.Request) -> web.Response:
         installation_access_token = await apps.get_installation_access_token(
             gh,
             installation_id=installation_id,
-            app_id=GH_APP_ID,
-            private_key=GH_PRIVATE_KEY,
+            app_id=request.app["gh_app_id"],
+            private_key=request.app["gh_private_key"],
         )
 
         # call the appropriate callback for the event
@@ -256,17 +253,24 @@ async def process_webhook(request: web.Request) -> web.Response:
     return web.Response(status=200)
 
 
+def load_secret_from_env_or_file(key: str, file_key: str) -> str:
+    if key in os.environ:
+        return os.environ[key]
+    elif file_key in os.environ:
+        return open(os.environ[file_key]).read().strip()
+    else:
+        raise Exception(f"You need to set either {key} or {file_key}.")
+
+
 def main() -> None:
-    # The lookups should not throw an exception at import time to allow for
-    # testing. If we're actually executing the bot though, we have to make sure
-    # all credentials are supplied.
-    if WEBHOOK_SECRET == "" or GH_APP_ID == "" or GH_PRIVATE_KEY == "":
-        print(
-            "Credentials not set. You need to set the WEBHOOK_SECRET, GH_APP_ID and GH_PRIVATE_KEY environment variables",
-            file=sys.stderr,
-        )
-        sys.exit(1)
     app = web.Application()
+    app["webhook_secret"] = load_secret_from_env_or_file(
+        "WEBHOOK_SECRET", "WEBHOOK_SECRET_FILE"
+    )
+    app["gh_private_key"] = load_secret_from_env_or_file(
+        "GH_PRIVATE_KEY", "GH_PRIVATE_KEY_FILE"
+    )
+    app["gh_app_id"] = load_secret_from_env_or_file("GH_APP_ID", "GH_APP_ID_FILE")
     app.add_routes(routes)
     port_str = os.environ.get("PORT")
     if port_str is not None:
