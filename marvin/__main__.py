@@ -273,8 +273,7 @@ def main() -> None:
     app["gh_app_id"] = load_secret_from_env_or_file("GH_APP_ID", "GH_APP_ID_FILE")
     app.add_routes(routes)
     port_str = os.environ.get("PORT")
-    if port_str is not None:
-        port = int(port_str)
+    port = int(port_str) if port_str is not None else None
 
     web.run_app(app, port=port)
 
