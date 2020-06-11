@@ -40,7 +40,7 @@ in nix-pre-commit-hooks.run {
      enable = true;
      name = "mypy";
      description = "For type checking";
-     entry = "${pythonenv}/bin/mypy";
+     entry = "${pythonenv}/bin/mypy --ignore-missing-imports";
      types = ["python"];
    };
  };
