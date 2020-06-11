@@ -225,7 +225,7 @@ async def pull_request_open_event(
 
 
 @routes.post("/webhook")
-async def main(request: web.Request) -> web.Response:
+async def process_webhook(request: web.Request) -> web.Response:
     # read the GitHub webhook payload
     body = await request.read()
 
@@ -256,7 +256,7 @@ async def main(request: web.Request) -> web.Response:
     return web.Response(status=200)
 
 
-if __name__ == "__main__":
+def main() -> None:
     # The lookups should not throw an exception at import time to allow for
     # testing. If we're actually executing the bot though, we have to make sure
     # all credentials are supplied.
@@ -273,3 +273,7 @@ if __name__ == "__main__":
         port = int(port_str)
 
     web.run_app(app, port=port)
+
+
+if __name__ == "__main__":
+    main()
