@@ -20,37 +20,18 @@ BOT_NAME = os.environ.get("BOT_NAME", "marvin-mk2")
 # List of mutually exclusive states
 ISSUE_STATES = {"needs_review", "needs_work", "needs_merge"}
 
-GREETING_FOOTER = f"""
+GREETING = f"""
+Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hopefully ending with a merge. The stages are
 
-Once a reviewer has looked at this, they can switch the state with `/status <new_state>`. Here
-- `needs_work` is appropriate when the PR in its current form is not ready yet. Maybe the reviewer requested changes, there is an ongoing discussion or you are waiting for upstream feedback.
-- `needs_review` should be set once the PR author thinks the PR is ready.
+- `needs_review`, if the author considers this PR ready
+- `needs_work` if the PR in its current form is not ready yet. Maybe the reviewer requested changes, there is an ongoing discussion or you are waiting for upstream feedback.
 - `needs_merge` can be set by reviewers who do not have merge permission but *would merge this PR if they could*.
+
+Anybody can switch the current state with a comment of the form `/state <new_state_here>`.
 
 Feedback and contributions to this bot are [appreciated](https://github.com/timokau/marvin-mk2).
 """.rstrip()
 
-GREETING_WORK = (
-    f"""
-Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hopefully ending with a merge.
-
-I have initialized the PR in the `needs_work` state. This indicates that the PR is not finished yet or that there are outstanding change requests. If you think the PR is good as-is, you can tell me to switch the state as follows:
-
-`/status needs_review`
-
-This will change the state to `needs_review`, which makes it easily discoverable by reviewers.
-""".strip()
-    + GREETING_FOOTER
-)
-
-GREETING_REVIEW = (
-    f"""
-Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hopefully ending with a merge.
-
-I have initialized the PR in the `needs_review` state. This indicates that you consider this PR good to go and makes it easily discoverable by reviewers.
-""".strip()
-    + GREETING_FOOTER
-)
 
 UNKNOWN_COMMAND_TEXT = f"""
 Sorry, I can't help you. Is there maybe a typo in your command?
@@ -125,7 +106,7 @@ async def handle_new_pr(
             await set_issue_state(pull_request, "needs_work", gh, token)
             await gh.post(
                 pull_request["comments_url"],
-                data={"body": GREETING_WORK},
+                data={"body": GREETING},
                 oauth_token=token,
             )
         elif command == "status needs_review":
@@ -133,7 +114,7 @@ async def handle_new_pr(
             await set_issue_state(pull_request, "needs_review", gh, token)
             await gh.post(
                 pull_request["comments_url"],
-                data={"body": GREETING_REVIEW},
+                data={"body": GREETING},
                 oauth_token=token,
             )
         else:
