@@ -88,69 +88,42 @@ async def set_issue_state(
         )
 
 
-async def handle_new_pr(
-    pull_request: Dict[str, Any], gh: gh_aiohttp.GitHubAPI, token: str
-) -> None:
-    """React to new issues"""
-    comment_text = pull_request["body"]
-    # If pull_request actually is a pull_request, we have to query issue_url.
-    # If its an issue, we have to use "url".
-    issue_url = pull_request.get("issue_url", pull_request["url"])
-    add_labels_url = issue_url + "/labels"
-    # Only handle one command for now, since a command can modify the issue and
-    # we'd need to keep track of that.
-    command_recognized = False
-    for command in find_commands(comment_text)[:1]:
-        if command == "status needs_work":
-            command_recognized = True
-            await set_issue_state(pull_request, "needs_work", gh, token)
-            await gh.post(
-                pull_request["comments_url"],
-                data={"body": GREETING},
-                oauth_token=token,
-            )
-        elif command == "status needs_review":
-            command_recognized = True
-            await set_issue_state(pull_request, "needs_review", gh, token)
-            await gh.post(
-                pull_request["comments_url"],
-                data={"body": GREETING},
-                oauth_token=token,
-            )
-        else:
-            await gh.post(
-                pull_request["comments_url"],
-                data={"body": UNKNOWN_COMMAND_TEXT},
-                oauth_token=token,
-            )
-    if command_recognized:
-        await gh.post(
-            add_labels_url, data={"labels": ["marvin"]}, oauth_token=token,
-        )
-
-
 async def handle_comment(
     comment: Dict[str, Any], issue: Dict[str, Any], gh: gh_aiohttp.GitHubAPI, token: str
 ) -> None:
     """React to issue comments"""
     comment_text = comment["body"]
     comment_author_login = comment["user"]["login"]
+    by_pr_author = issue["user"]["id"] == comment["user"]["id"]
+
     if comment_author_login in [BOT_NAME, BOT_NAME + "[bot]"]:
         return
 
     # check opt-in
-    if "marvin" not in {label["name"] for label in issue["labels"]}:
-        return
+    pr_labels = {label["name"] for label in issue["labels"]}
+    commands = find_commands(comment_text)
+    if "marvin" not in pr_labels:
+        if by_pr_author and "marvin opt-in" == commands[0]:
+            issue_url = issue.get("issue_url", issue["url"])
+            await gh.post(
+                issue_url + "/labels", data={"labels": ["marvin"]}, oauth_token=token,
+            )
+            await gh.post(
+                issue["comments_url"], data={"body": GREETING}, oauth_token=token,
+            )
+            commands = commands[1:]
+        else:
+            return
 
     # Only handle one command for now, since a command can modify the issue and
     # we'd need to keep track of that.
-    for command in find_commands(comment_text)[:1]:
+    for command in commands:
         if command == "status needs_work":
             await set_issue_state(issue, "needs_work", gh, token)
         elif command == "status needs_review":
             await set_issue_state(issue, "needs_review", gh, token)
         elif command == "status needs_merge":
-            if issue["user"]["id"] == comment["user"]["id"]:
+            if by_pr_author:
                 await gh.post(
                     issue["comments_url"],
                     data={"body": NO_SELF_REVIEW_TEXT},
@@ -178,13 +151,6 @@ async def pull_request_review_comment_event(
     event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
     await handle_comment(event.data["comment"], event.data["pull_request"], gh, token)
-
-
-@router.register("pull_request", action="opened")
-async def pull_request_open_event(
-    event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
-) -> None:
-    await handle_new_pr(event.data["pull_request"], gh, token)
 
 
 @routes.post("/webhook")
