@@ -23,9 +23,9 @@ ISSUE_STATES = {"needs_review", "needs_work", "needs_merge"}
 GREETING_FOOTER = f"""
 
 Once a reviewer has looked at this, they can either
-- request changes and instruct me to switch the state back (/status needs_work)
+- request changes and instruct me to switch the state back (`/status needs_work`)
 - merge the PR if it looks good and they have the appropriate permission
-- switch the state to `needs_merge` (/status needs_merge), which allows reviewers with merge permission to focus their reviews
+- switch the state to `needs_merge` (`/status needs_merge`), which allows reviewers with merge permission to focus their reviews
 
 If anything could be improved, do not hesitate to give [feedback](https://github.com/timokau/marvin-mk2/issues).
 """.rstrip()
@@ -36,7 +36,7 @@ Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hop
 
 I have initialized the PR in the `needs_work` state. This indicates that the PR is not finished yet or that there are outstanding change requests. If you think the PR is good as-is, you can tell me to switch the state as follows:
 
-/status needs_review
+`/status needs_review`
 
 This will change the state to `needs_review`, which makes it easily discoverable by reviewers.
 """.strip()
