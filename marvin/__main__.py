@@ -88,6 +88,9 @@ async def set_issue_state(
     """Sets the state of an issue while resetting other states"""
     assert state in ISSUE_STATES
 
+    # depending on whether the issue is actually a pull request
+    issue_url = issue.get("issue_url", issue["url"])
+
     # Labels are mutually exclusive, so clear other labels first.
     labels = issue["labels"]
     label_names = {label["name"] for label in labels}
@@ -96,11 +99,11 @@ async def set_issue_state(
     for label in state_labels:
         if label == state:  # Don't touch the label we're supposed to set.
             continue
-        await gh.delete(issue["url"] + "/labels/" + label, oauth_token=token)
+        await gh.delete(issue_url + "/labels/" + label, oauth_token=token)
 
     if state not in state_labels:
         await gh.post(
-            issue["url"] + "/labels", data={"labels": [state]}, oauth_token=token,
+            issue_url + "/labels", data={"labels": [state]}, oauth_token=token,
         )
 
 
