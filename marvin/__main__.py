@@ -182,14 +182,6 @@ async def handle_comment(
             )
 
 
-# Work on issues too for easier testing.
-@router.register("issues", action="opened")
-async def issue_open_event(
-    event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
-) -> None:
-    await handle_new_pr(event.data["issue"], gh, token)
-
-
 @router.register("issue_comment", action="created")
 async def issue_comment_event(
     event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
