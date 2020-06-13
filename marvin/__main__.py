@@ -33,10 +33,6 @@ Feedback and contributions to this bot are [appreciated](https://github.com/timo
 """.rstrip()
 
 
-UNKNOWN_COMMAND_TEXT = f"""
-Sorry, I can't help you. Is there maybe a typo in your command?
-""".strip()
-
 NO_SELF_REVIEW_TEXT = f"""
 Sorry, you cannot set your own PR to `needs_merge`. Please wait for an external review. You may also actively search out a reviewer by pinging relevant people (look at the history of the files you're changing) or posting on discourse or IRC.
 """.strip()
@@ -132,11 +128,7 @@ async def handle_comment(
             else:
                 await set_issue_state(issue, "needs_merge", gh, token)
         else:
-            await gh.post(
-                issue["comments_url"],
-                data={"body": UNKNOWN_COMMAND_TEXT},
-                oauth_token=token,
-            )
+            print(f"Unknown command: {command}")
 
 
 @router.register("issue_comment", action="created")
