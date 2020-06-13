@@ -20,41 +20,18 @@ BOT_NAME = os.environ.get("BOT_NAME", "marvin-mk2")
 # List of mutually exclusive states
 ISSUE_STATES = {"needs_review", "needs_work", "needs_merge"}
 
-GREETING_FOOTER = f"""
+GREETING = f"""
+Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hopefully ending with a merge. The stages are
 
-Once a reviewer has looked at this, they can switch the state with `/status <new_state>`. Here
-- `needs_work` is appropriate when the PR in its current form is not ready yet. Maybe the reviewer requested changes, there is an ongoing discussion or you are waiting for upstream feedback.
-- `needs_review` should be set once the PR author thinks the PR is ready.
+- `needs_review`, if the author considers this PR ready
+- `needs_work` if the PR in its current form is not ready yet. Maybe the reviewer requested changes, there is an ongoing discussion or you are waiting for upstream feedback.
 - `needs_merge` can be set by reviewers who do not have merge permission but *would merge this PR if they could*.
+
+Anybody can switch the current state with a comment of the form `/state <new_state_here>`.
 
 Feedback and contributions to this bot are [appreciated](https://github.com/timokau/marvin-mk2).
 """.rstrip()
 
-GREETING_WORK = (
-    f"""
-Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hopefully ending with a merge.
-
-I have initialized the PR in the `needs_work` state. This indicates that the PR is not finished yet or that there are outstanding change requests. If you think the PR is good as-is, you can tell me to switch the state as follows:
-
-`/status needs_review`
-
-This will change the state to `needs_review`, which makes it easily discoverable by reviewers.
-""".strip()
-    + GREETING_FOOTER
-)
-
-GREETING_REVIEW = (
-    f"""
-Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hopefully ending with a merge.
-
-I have initialized the PR in the `needs_review` state. This indicates that you consider this PR good to go and makes it easily discoverable by reviewers.
-""".strip()
-    + GREETING_FOOTER
-)
-
-UNKNOWN_COMMAND_TEXT = f"""
-Sorry, I can't help you. Is there maybe a typo in your command?
-""".strip()
 
 NO_SELF_REVIEW_TEXT = f"""
 Sorry, you cannot set your own PR to `needs_merge`. Please wait for an external review. You may also actively search out a reviewer by pinging relevant people (look at the history of the files you're changing) or posting on discourse or IRC.
@@ -107,69 +84,42 @@ async def set_issue_state(
         )
 
 
-async def handle_new_pr(
-    pull_request: Dict[str, Any], gh: gh_aiohttp.GitHubAPI, token: str
-) -> None:
-    """React to new issues"""
-    comment_text = pull_request["body"]
-    # If pull_request actually is a pull_request, we have to query issue_url.
-    # If its an issue, we have to use "url".
-    issue_url = pull_request.get("issue_url", pull_request["url"])
-    add_labels_url = issue_url + "/labels"
-    # Only handle one command for now, since a command can modify the issue and
-    # we'd need to keep track of that.
-    command_recognized = False
-    for command in find_commands(comment_text)[:1]:
-        if command == "status needs_work":
-            command_recognized = True
-            await set_issue_state(pull_request, "needs_work", gh, token)
-            await gh.post(
-                pull_request["comments_url"],
-                data={"body": GREETING_WORK},
-                oauth_token=token,
-            )
-        elif command == "status needs_review":
-            command_recognized = True
-            await set_issue_state(pull_request, "needs_review", gh, token)
-            await gh.post(
-                pull_request["comments_url"],
-                data={"body": GREETING_REVIEW},
-                oauth_token=token,
-            )
-        else:
-            await gh.post(
-                pull_request["comments_url"],
-                data={"body": UNKNOWN_COMMAND_TEXT},
-                oauth_token=token,
-            )
-    if command_recognized:
-        await gh.post(
-            add_labels_url, data={"labels": ["marvin"]}, oauth_token=token,
-        )
-
-
 async def handle_comment(
     comment: Dict[str, Any], issue: Dict[str, Any], gh: gh_aiohttp.GitHubAPI, token: str
 ) -> None:
     """React to issue comments"""
     comment_text = comment["body"]
     comment_author_login = comment["user"]["login"]
+    by_pr_author = issue["user"]["id"] == comment["user"]["id"]
+
     if comment_author_login in [BOT_NAME, BOT_NAME + "[bot]"]:
         return
 
     # check opt-in
-    if "marvin" not in {label["name"] for label in issue["labels"]}:
-        return
+    pr_labels = {label["name"] for label in issue["labels"]}
+    commands = find_commands(comment_text)
+    if "marvin" not in pr_labels:
+        if by_pr_author and "marvin opt-in" == commands[0]:
+            issue_url = issue.get("issue_url", issue["url"])
+            await gh.post(
+                issue_url + "/labels", data={"labels": ["marvin"]}, oauth_token=token,
+            )
+            await gh.post(
+                issue["comments_url"], data={"body": GREETING}, oauth_token=token,
+            )
+            commands = commands[1:]
+        else:
+            return
 
     # Only handle one command for now, since a command can modify the issue and
     # we'd need to keep track of that.
-    for command in find_commands(comment_text)[:1]:
+    for command in commands:
         if command == "status needs_work":
             await set_issue_state(issue, "needs_work", gh, token)
         elif command == "status needs_review":
             await set_issue_state(issue, "needs_review", gh, token)
         elif command == "status needs_merge":
-            if issue["user"]["id"] == comment["user"]["id"]:
+            if by_pr_author:
                 await gh.post(
                     issue["comments_url"],
                     data={"body": NO_SELF_REVIEW_TEXT},
@@ -178,11 +128,7 @@ async def handle_comment(
             else:
                 await set_issue_state(issue, "needs_merge", gh, token)
         else:
-            await gh.post(
-                issue["comments_url"],
-                data={"body": UNKNOWN_COMMAND_TEXT},
-                oauth_token=token,
-            )
+            print(f"Unknown command: {command}")
 
 
 @router.register("issue_comment", action="created")
@@ -197,13 +143,6 @@ async def pull_request_review_comment_event(
     event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
     await handle_comment(event.data["comment"], event.data["pull_request"], gh, token)
-
-
-@router.register("pull_request", action="opened")
-async def pull_request_open_event(
-    event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
-) -> None:
-    await handle_new_pr(event.data["pull_request"], gh, token)
 
 
 @routes.post("/webhook")
