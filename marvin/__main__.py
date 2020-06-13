@@ -56,6 +56,10 @@ UNKNOWN_COMMAND_TEXT = f"""
 Sorry, I can't help you. Is there maybe a typo in your command?
 """.strip()
 
+NO_SELF_REVIEW_TEXT = f"""
+Sorry, you cannot set your own PR to `needs_merge`. Please wait for an external review. You may also actively search out a reviewer by pinging relevant people (look at the history of the files you're changing) or posting on discourse or IRC.
+""".strip()
+
 
 # Unfortunately its not possible to directly listen for mentions
 # https://github.com/dear-github/dear-github/issues/294
@@ -180,7 +184,14 @@ async def handle_comment(
         elif command == "status needs_review":
             await set_issue_state(issue, "needs_review", gh, token)
         elif command == "status needs_merge":
-            await set_issue_state(issue, "needs_merge", gh, token)
+            if issue["user"]["id"] == comment["user"]["id"]:
+                await gh.post(
+                    issue["comments_url"],
+                    data={"body": NO_SELF_REVIEW_TEXT},
+                    oauth_token=token,
+                )
+            else:
+                await set_issue_state(issue, "needs_merge", gh, token)
         else:
             await gh.post(
                 issue["comments_url"],
