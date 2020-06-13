@@ -1,4 +1,6 @@
 import os
+import sys
+import traceback
 from typing import Any
 from typing import Dict
 from typing import List
@@ -221,36 +223,40 @@ async def pull_request_open_event(
 
 @routes.post("/webhook")
 async def process_webhook(request: web.Request) -> web.Response:
-    # read the GitHub webhook payload
-    body = await request.read()
+    try:
+        # read the GitHub webhook payload
+        body = await request.read()
 
-    # parse the event
-    event = sansio.Event.from_http(
-        request.headers, body, secret=request.app["webhook_secret"]
-    )
-
-    async with aiohttp.ClientSession() as session:
-        gh = gh_aiohttp.GitHubAPI(session, BOT_NAME)
-
-        # Fetch the installation_access_token once for each webhook delivery.
-        # The token is valid for an hour, so it could be cached if we need to
-        # save some API calls.
-        installation_id = event.data["installation"]["id"]
-        installation_access_token = await apps.get_installation_access_token(
-            gh,
-            installation_id=installation_id,
-            app_id=request.app["gh_app_id"],
-            private_key=request.app["gh_private_key"],
+        # parse the event
+        event = sansio.Event.from_http(
+            request.headers, body, secret=request.app["webhook_secret"]
         )
 
-        # call the appropriate callback for the event
-        await router.dispatch(event, gh, installation_access_token["token"])
+        async with aiohttp.ClientSession() as session:
+            gh = gh_aiohttp.GitHubAPI(session, BOT_NAME)
 
-    if gh.rate_limit is not None:
-        print("GH rate limit remaining:", gh.rate_limit.remaining)
+            # Fetch the installation_access_token once for each webhook delivery.
+            # The token is valid for an hour, so it could be cached if we need to
+            # save some API calls.
+            installation_id = event.data["installation"]["id"]
+            installation_access_token = await apps.get_installation_access_token(
+                gh,
+                installation_id=installation_id,
+                app_id=request.app["gh_app_id"],
+                private_key=request.app["gh_private_key"],
+            )
 
-    # HTTP success
-    return web.Response(status=200)
+            # call the appropriate callback for the event
+            await router.dispatch(event, gh, installation_access_token["token"])
+
+        if gh.rate_limit is not None:
+            print("GH rate limit remaining:", gh.rate_limit.remaining)
+
+        # HTTP success
+        return web.Response(status=200)
+    except Exception:
+        traceback.print_exc(file=sys.stderr)
+        return web.Response(status=500)
 
 
 def load_secret_from_env_or_file(key: str, file_key: str) -> str:
