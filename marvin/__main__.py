@@ -22,12 +22,12 @@ ISSUE_STATES = {"needs_review", "needs_work", "needs_merge"}
 
 GREETING_FOOTER = f"""
 
-Once a reviewer has looked at this, they can either
-- request changes and instruct me to switch the state back (/status needs_work)
-- merge the PR if it looks good and they have the appropriate permission
-- switch the state to `needs_merge` (/status needs_merge), which allows reviewers with merge permission to focus their reviews
+Once a reviewer has looked at this, they can switch the state with `/status <new_state>`. Here
+- `needs_work` is appropriate when the PR in its current form is not ready yet. Maybe the reviewer requested changes, there is an ongoing discussion or you are waiting for upstream feedback.
+- `needs_review` should be set once the PR author thinks the PR is ready.
+- `needs_merge` can be set by reviewers who do not have merge permission but *would merge this PR if they could*.
 
-If anything could be improved, do not hesitate to give [feedback](https://github.com/timokau/marvin-mk2/issues).
+Feedback and contributions to this bot are [appreciated](https://github.com/timokau/marvin-mk2).
 """.rstrip()
 
 GREETING_WORK = (
@@ -36,7 +36,7 @@ Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hop
 
 I have initialized the PR in the `needs_work` state. This indicates that the PR is not finished yet or that there are outstanding change requests. If you think the PR is good as-is, you can tell me to switch the state as follows:
 
-/status needs_review
+`/status needs_review`
 
 This will change the state to `needs_review`, which makes it easily discoverable by reviewers.
 """.strip()
@@ -82,27 +82,29 @@ def find_commands(comment_text: str) -> List[str]:
     return commands
 
 
-async def clear_state(
-    issue: Dict[str, Any], gh: gh_aiohttp.GitHubAPI, token: str
-) -> None:
-    """Clears the state tag of an issue"""
-    labels = issue["labels"]
-    label_names = {label["name"] for label in labels}
-    # should never be more than one, but better to make it a set anyway
-    state_labels = label_names.intersection(ISSUE_STATES)
-    for label in state_labels:
-        await gh.delete(issue["url"] + "/labels/" + label, oauth_token=token)
-
-
 async def set_issue_state(
     issue: Dict[str, Any], state: str, gh: gh_aiohttp.GitHubAPI, token: str
 ) -> None:
     """Sets the state of an issue while resetting other states"""
     assert state in ISSUE_STATES
-    await clear_state(issue, gh, token)
-    await gh.post(
-        issue["url"] + "/labels", data={"labels": [state]}, oauth_token=token,
-    )
+
+    # depending on whether the issue is actually a pull request
+    issue_url = issue.get("issue_url", issue["url"])
+
+    # Labels are mutually exclusive, so clear other labels first.
+    labels = issue["labels"]
+    label_names = {label["name"] for label in labels}
+    # should never be more than one, but better to make it a set anyway
+    state_labels = label_names.intersection(ISSUE_STATES)
+    for label in state_labels:
+        if label == state:  # Don't touch the label we're supposed to set.
+            continue
+        await gh.delete(issue_url + "/labels/" + label, oauth_token=token)
+
+    if state not in state_labels:
+        await gh.post(
+            issue_url + "/labels", data={"labels": [state]}, oauth_token=token,
+        )
 
 
 async def handle_new_pr(
@@ -181,14 +183,6 @@ async def handle_comment(
                 data={"body": UNKNOWN_COMMAND_TEXT},
                 oauth_token=token,
             )
-
-
-# Work on issues too for easier testing.
-@router.register("issues", action="opened")
-async def issue_open_event(
-    event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
-) -> None:
-    await handle_new_pr(event.data["issue"], gh, token)
 
 
 @router.register("issue_comment", action="created")
