@@ -22,12 +22,12 @@ ISSUE_STATES = {"needs_review", "needs_work", "needs_merge"}
 
 GREETING_FOOTER = f"""
 
-Once a reviewer has looked at this, they can either
-- request changes and instruct me to switch the state back (`/status needs_work`)
-- merge the PR if it looks good and they have the appropriate permission
-- switch the state to `needs_merge` (`/status needs_merge`), which allows reviewers with merge permission to focus their reviews
+Once a reviewer has looked at this, they can switch the state with `/status <new_state>`. Here
+- `needs_work` is appropriate when the PR in its current form is not ready yet. Maybe the reviewer requested changes, there is an ongoing discussion or you are waiting for upstream feedback.
+- `needs_review` should be set once the PR author thinks the PR is ready.
+- `needs_merge` can be set by reviewers who do not have merge permission but *would merge this PR if they could*.
 
-If anything could be improved, do not hesitate to give [feedback](https://github.com/timokau/marvin-mk2/issues).
+Feedback and contributions to this bot are [appreciated](https://github.com/timokau/marvin-mk2).
 """.rstrip()
 
 GREETING_WORK = (
