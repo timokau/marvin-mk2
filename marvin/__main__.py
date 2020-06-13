@@ -162,24 +162,7 @@ async def handle_comment(
     # Only handle one command for now, since a command can modify the issue and
     # we'd need to keep track of that.
     for command in find_commands(comment_text)[:1]:
-        if command == "echo":
-            comment_text = comment["body"]
-            reply_text = f"Echo!\n{comment_text}"
-            await gh.post(
-                issue["comments_url"], data={"body": reply_text}, oauth_token=token,
-            )
-        elif command == "agree with me":
-            # https://developer.github.com/v3/reactions/#reaction-types For
-            # some reason reactions have been in "beta" since 2016. We need to
-            # opt in with the accept header.
-            # https://developer.github.com/changes/2016-05-12-reactions-api-preview/
-            await gh.post(
-                comment["url"] + "/reactions",
-                data={"content": "+1"},
-                accept="application/vnd.github.squirrel-girl-preview+json",
-                oauth_token=token,
-            )
-        elif command == "status needs_work":
+        if command == "status needs_work":
             await set_issue_state(issue, "needs_work", gh, token)
         elif command == "status needs_review":
             await set_issue_state(issue, "needs_review", gh, token)
