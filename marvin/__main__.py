@@ -82,27 +82,26 @@ def find_commands(comment_text: str) -> List[str]:
     return commands
 
 
-async def clear_state(
-    issue: Dict[str, Any], gh: gh_aiohttp.GitHubAPI, token: str
-) -> None:
-    """Clears the state tag of an issue"""
-    labels = issue["labels"]
-    label_names = {label["name"] for label in labels}
-    # should never be more than one, but better to make it a set anyway
-    state_labels = label_names.intersection(ISSUE_STATES)
-    for label in state_labels:
-        await gh.delete(issue["url"] + "/labels/" + label, oauth_token=token)
-
-
 async def set_issue_state(
     issue: Dict[str, Any], state: str, gh: gh_aiohttp.GitHubAPI, token: str
 ) -> None:
     """Sets the state of an issue while resetting other states"""
     assert state in ISSUE_STATES
-    await clear_state(issue, gh, token)
-    await gh.post(
-        issue["url"] + "/labels", data={"labels": [state]}, oauth_token=token,
-    )
+
+    # Labels are mutually exclusive, so clear other labels first.
+    labels = issue["labels"]
+    label_names = {label["name"] for label in labels}
+    # should never be more than one, but better to make it a set anyway
+    state_labels = label_names.intersection(ISSUE_STATES)
+    for label in state_labels:
+        if label == state:  # Don't touch the label we're supposed to set.
+            continue
+        await gh.delete(issue["url"] + "/labels/" + label, oauth_token=token)
+
+    if state not in state_labels:
+        await gh.post(
+            issue["url"] + "/labels", data={"labels": [state]}, oauth_token=token,
+        )
 
 
 async def handle_new_pr(
