@@ -17,19 +17,15 @@ routes = web.RouteTableDef()
 
 BOT_NAME = os.environ.get("BOT_NAME", "marvin-mk2")
 
-# map commands to mutually exclusive labels
-ISSUE_STATE_COMMANDS = {
-    "needs review": "needs_review",
-    "needs work": "needs_work",
-    "needs merge": "needs_merge",
-}
+# List of mutually exclusive states
+ISSUE_STATES = {"needs_review", "needs_work", "needs_merge"}
 
 GREETING_FOOTER = f"""
 
 Once a reviewer has looked at this, they can either
-- request changes and instruct me to switch the state back (@{BOT_NAME} needs work)
+- request changes and instruct me to switch the state back (/status needs_work)
 - merge the PR if it looks good and they have the appropriate permission
-- switch the state to `needs_merge` (@{BOT_NAME} needs merge), which allows reviewers with merge permission to focus their reviews
+- switch the state to `needs_merge` (/status needs_merge), which allows reviewers with merge permission to focus their reviews
 
 If anything could be improved, do not hesitate to give [feedback](https://github.com/timokau/marvin-mk2/issues).
 """.rstrip()
@@ -40,7 +36,7 @@ Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hop
 
 I have initialized the PR in the `needs_work` state. This indicates that the PR is not finished yet or that there are outstanding change requests. If you think the PR is good as-is, you can tell me to switch the state as follows:
 
-@{BOT_NAME} needs review
+/status needs_review
 
 This will change the state to `needs_review`, which makes it easily discoverable by reviewers.
 """.strip()
@@ -68,18 +64,16 @@ def find_commands(comment_text: str) -> List[str]:
 
     >>> find_commands("This is a comment without a command.")
     []
-    >>> find_commands("This includes a command, but with the wrong mention.\n@marvin-mk3 command")
-    []
-    >>> find_commands("This includes a proper command.\n@marvin-mk2 command with multiple words")
+    >>> find_commands("This includes a proper command.\n/command with multiple words")
     ['command with multiple words']
-    >>> find_commands("@marvin-mk2 @marvin-mk2 test\n@marvin-mk3 asdf\n@marvin-mk2 another  ")
-    ['@marvin-mk2 test', 'another']
+    >>> find_commands("//test\n/another  ")
+    ['/test', 'another']
     """
 
     commands = []
     for line in comment_text.splitlines():
-        prefix = f"@{BOT_NAME}"
-        if line.startswith(f"@{BOT_NAME}"):
+        prefix = "/"
+        if line.startswith(prefix):
             commands.append(line[len(prefix) :].strip())
     return commands
 
@@ -91,9 +85,20 @@ async def clear_state(
     labels = issue["labels"]
     label_names = {label["name"] for label in labels}
     # should never be more than one, but better to make it a set anyway
-    state_labels = label_names.intersection(ISSUE_STATE_COMMANDS.values())
+    state_labels = label_names.intersection(ISSUE_STATES)
     for label in state_labels:
         await gh.delete(issue["url"] + "/labels/" + label, oauth_token=token)
+
+
+async def set_issue_state(
+    issue: Dict[str, Any], state: str, gh: gh_aiohttp.GitHubAPI, token: str
+) -> None:
+    """Sets the state of an issue while resetting other states"""
+    assert state in ISSUE_STATES
+    await clear_state(issue, gh, token)
+    await gh.post(
+        issue["url"] + "/labels", data={"labels": [state]}, oauth_token=token,
+    )
 
 
 async def handle_new_pr(
@@ -107,30 +112,19 @@ async def handle_new_pr(
     add_labels_url = issue_url + "/labels"
     # Only handle one command for now, since a command can modify the issue and
     # we'd need to keep track of that.
+    command_recognized = False
     for command in find_commands(comment_text)[:1]:
-        if command == "needs work":
-            await gh.post(
-                add_labels_url, data={"labels": ["marvin"]}, oauth_token=token,
-            )
-            await gh.post(
-                issue_url + "/labels",
-                data={"labels": [ISSUE_STATE_COMMANDS["needs work"]]},
-                oauth_token=token,
-            )
+        if command == "status needs_work":
+            command_recognized = True
+            await set_issue_state(pull_request, "needs_work", gh, token)
             await gh.post(
                 pull_request["comments_url"],
                 data={"body": GREETING_WORK},
                 oauth_token=token,
             )
-        elif command == "needs review":
-            await gh.post(
-                add_labels_url, data={"labels": ["marvin"]}, oauth_token=token,
-            )
-            await gh.post(
-                add_labels_url,
-                data={"labels": [ISSUE_STATE_COMMANDS["needs review"]]},
-                oauth_token=token,
-            )
+        elif command == "status needs_review":
+            command_recognized = True
+            await set_issue_state(pull_request, "needs_review", gh, token)
             await gh.post(
                 pull_request["comments_url"],
                 data={"body": GREETING_REVIEW},
@@ -142,6 +136,10 @@ async def handle_new_pr(
                 data={"body": UNKNOWN_COMMAND_TEXT},
                 oauth_token=token,
             )
+    if command_recognized:
+        await gh.post(
+            add_labels_url, data={"labels": ["marvin"]}, oauth_token=token,
+        )
 
 
 async def handle_comment(
@@ -177,13 +175,12 @@ async def handle_comment(
                 accept="application/vnd.github.squirrel-girl-preview+json",
                 oauth_token=token,
             )
-        elif command in ISSUE_STATE_COMMANDS:
-            await clear_state(issue, gh, token)
-            await gh.post(
-                issue["url"] + "/labels",
-                data={"labels": [ISSUE_STATE_COMMANDS[command]]},
-                oauth_token=token,
-            )
+        elif command == "status needs_work":
+            await set_issue_state(issue, "needs_work", gh, token)
+        elif command == "status needs_review":
+            await set_issue_state(issue, "needs_review", gh, token)
+        elif command == "status needs_merge":
+            await set_issue_state(issue, "needs_merge", gh, token)
         else:
             await gh.post(
                 issue["comments_url"],
