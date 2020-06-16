@@ -17,8 +17,8 @@ routes = web.RouteTableDef()
 
 BOT_NAME = os.environ.get("BOT_NAME", "marvin-mk2")
 
-# List of mutually exclusive states
-ISSUE_STATES = {"needs_review", "needs_work", "needs_merge"}
+# List of mutually exclusive status labels
+ISSUE_STATUS_LABELS = {"needs_review", "needs_work", "needs_merge"}
 
 GREETING = f"""
 Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hopefully ending with a merge. The stages are
@@ -27,7 +27,7 @@ Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hop
 - `needs_work` if the PR in its current form is not ready yet. Maybe the reviewer requested changes, there is an ongoing discussion or you are waiting for upstream feedback.
 - `needs_merge` can be set by reviewers who do not have merge permission but *would merge this PR if they could*.
 
-Anybody can switch the current state with a comment of the form `/state <new_state_here>`.
+Anybody can switch the current status with a comment of the form `/status <new_status_here>`.
 
 Feedback and contributions to this bot are [appreciated](https://github.com/timokau/marvin-mk2).
 """.rstrip()
@@ -59,11 +59,11 @@ def find_commands(comment_text: str) -> List[str]:
     return commands
 
 
-async def set_issue_state(
-    issue: Dict[str, Any], state: str, gh: gh_aiohttp.GitHubAPI, token: str
+async def set_issue_status(
+    issue: Dict[str, Any], status: str, gh: gh_aiohttp.GitHubAPI, token: str
 ) -> None:
-    """Sets the state of an issue while resetting other states"""
-    assert state in ISSUE_STATES
+    """Sets the status of an issue while resetting other status labels"""
+    assert status in ISSUE_STATUS_LABELS
 
     # depending on whether the issue is actually a pull request
     issue_url = issue.get("issue_url", issue["url"])
@@ -72,15 +72,15 @@ async def set_issue_state(
     labels = issue["labels"]
     label_names = {label["name"] for label in labels}
     # should never be more than one, but better to make it a set anyway
-    state_labels = label_names.intersection(ISSUE_STATES)
-    for label in state_labels:
-        if label == state:  # Don't touch the label we're supposed to set.
+    status_labels = label_names.intersection(ISSUE_STATUS_LABELS)
+    for label in status_labels:
+        if label == status:  # Don't touch the label we're supposed to set.
             continue
         await gh.delete(issue_url + "/labels/" + label, oauth_token=token)
 
-    if state not in state_labels:
+    if status not in status_labels:
         await gh.post(
-            issue_url + "/labels", data={"labels": [state]}, oauth_token=token,
+            issue_url + "/labels", data={"labels": [status]}, oauth_token=token,
         )
 
 
@@ -115,9 +115,9 @@ async def handle_comment(
     # we'd need to keep track of that.
     for command in commands:
         if command == "status needs_work":
-            await set_issue_state(issue, "needs_work", gh, token)
+            await set_issue_status(issue, "needs_work", gh, token)
         elif command == "status needs_review":
-            await set_issue_state(issue, "needs_review", gh, token)
+            await set_issue_status(issue, "needs_review", gh, token)
         elif command == "status needs_merge":
             if by_pr_author:
                 await gh.post(
@@ -126,7 +126,7 @@ async def handle_comment(
                     oauth_token=token,
                 )
             else:
-                await set_issue_state(issue, "needs_merge", gh, token)
+                await set_issue_status(issue, "needs_merge", gh, token)
         else:
             print(f"Unknown command: {command}")
 
