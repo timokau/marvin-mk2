@@ -146,6 +146,17 @@ async def pull_request_review_submitted_event(
         await set_issue_status(event.data["pull_request"], "needs_work", gh, token)
 
 
+@router.register("pull_request", action="synchronize")
+async def pull_request_synchronize(
+    event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
+) -> None:
+    # Synchronize means that the PRs branch moved, invalidating previous reviews.
+    if "needs_merge" in {
+        label["name"] for label in event.data["pull_request"]["labels"]
+    }:
+        await set_issue_status(event.data["pull_request"], "needs_review", gh, token)
+
+
 @routes.post("/webhook")
 async def process_webhook(request: web.Request) -> web.Response:
     try:
