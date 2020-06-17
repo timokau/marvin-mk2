@@ -142,6 +142,8 @@ async def pull_request_review_submitted_event(
     event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
     await handle_comment(event.data["review"], event.data["pull_request"], gh, token)
+    if event.data["review"]["state"] == "changes_requested":
+        await set_issue_status(event.data["pull_request"], "needs_work", gh, token)
 
 
 @routes.post("/webhook")
