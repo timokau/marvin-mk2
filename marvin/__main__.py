@@ -157,6 +157,33 @@ async def pull_request_synchronize(
         await set_issue_status(event.data["pull_request"], "needs_review", gh, token)
 
 
+def is_opted_in(event: sansio.Event) -> bool:
+    """Perform a conservative opt-in check.
+
+    Returns "true" if the PR is either already opted-in ("marvin" label
+    present) or the current event contains the opt-in command by the PR author.
+    """
+    issue = event.data.get("issue", event.data.get("pull_request"))
+    if issue is None:
+        return False
+
+    if "marvin" in {label["name"] for label in issue["labels"]}:
+        return True
+
+    comment = event.data.get("comment")
+    if comment is None:
+        return False
+
+    # We detect the opt-in command here to decide whether or not we should
+    # route the event. We do not act on it here. This is some code duplication,
+    # but better safe than sorry.
+    by_pr_author = issue["user"]["id"] == comment["user"]["id"]
+    if by_pr_author and "marvin opt-in" in find_commands(comment["body"]):
+        return True
+
+    return False
+
+
 @routes.post("/webhook")
 async def process_webhook(request: web.Request) -> web.Response:
     try:
@@ -182,8 +209,9 @@ async def process_webhook(request: web.Request) -> web.Response:
                 private_key=request.app["gh_private_key"],
             )
 
-            # call the appropriate callback for the event
-            await router.dispatch(event, gh, installation_access_token["token"])
+            if is_opted_in(event):
+                # call the appropriate callback for the event
+                await router.dispatch(event, gh, installation_access_token["token"])
 
         if gh.rate_limit is not None:
             print("GH rate limit remaining:", gh.rate_limit.remaining)
