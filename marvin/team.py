@@ -1,6 +1,8 @@
 import random
+from typing import Any
 from typing import Awaitable
 from typing import Callable
+from typing import Dict
 from typing import Optional
 
 from gidgethub import aiohttp as gh_aiohttp
@@ -50,7 +52,7 @@ TEAM = {
 
 
 async def get_reviewer(
-    gh: gh_aiohttp.GitHubAPI, merge_permission_needed: bool
+    gh: gh_aiohttp.GitHubAPI, issue: Dict[str, Any], merge_permission_needed: bool
 ) -> Optional[str]:
     """Attempt to find a random reviewer that is currently allowing requests."""
 
@@ -62,9 +64,14 @@ async def get_reviewer(
         f"Selecting reviewer from candidates: {[candidate.gh_name for candidate in candidates]}"
     )
 
+    pr_author_login = issue["user"]["login"]
+
     # Go through candidates in random order and return the first that is
     # willing to review.
     for candidate in random.sample(candidates, len(candidates)):
+        if candidate.gh_name == pr_author_login:
+            print(f"Skipping pr author {pr_author_login}")
+            continue
         print(f"Testing {candidate.gh_name}")
         if await candidate.request_allowed(gh):
             return candidate.gh_name
