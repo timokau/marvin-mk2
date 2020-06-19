@@ -12,6 +12,8 @@ from gidgethub import apps
 from gidgethub import routing
 from gidgethub import sansio
 
+from marvin.team import get_reviewer
+
 router = routing.Router()
 routes = web.RouteTableDef()
 
@@ -51,6 +53,14 @@ def find_commands(comment_text: str) -> List[str]:
     return commands
 
 
+async def request_review(
+    pull_url: str, gh_login: str, gh: gh_aiohttp.GitHubAPI, token: str
+) -> None:
+    """Request a review on a pull request by `gh_login`."""
+    url = f"{pull_url}/requested_reviewers"
+    await gh.post(url, data={"reviewers": [gh_login]}, oauth_token=token)
+
+
 async def set_issue_status(
     issue: Dict[str, Any], status: str, gh: gh_aiohttp.GitHubAPI, token: str
 ) -> None:
@@ -77,7 +87,11 @@ async def set_issue_status(
 
 
 async def handle_comment(
-    comment: Dict[str, Any], issue: Dict[str, Any], gh: gh_aiohttp.GitHubAPI, token: str
+    comment: Dict[str, Any],
+    issue: Dict[str, Any],
+    pull_request_url: str,
+    gh: gh_aiohttp.GitHubAPI,
+    token: str,
 ) -> None:
     """React to issue comments"""
     comment_text = comment["body"]
@@ -119,6 +133,12 @@ async def handle_comment(
                 )
             else:
                 await set_issue_status(issue, "needs_merge", gh, token)
+                reviewer = await get_reviewer(gh, merge_permission_needed=True)
+                if reviewer is not None:
+                    print(f"Requesting review (merge) from {reviewer} for {pull_request_url}.")
+                    await request_review(pull_request_url, "timokau", gh, token)
+                else:
+                    print(f"No reviewer found for {pull_request_url}.")
         else:
             print(f"Unknown command: {command}")
 
@@ -127,21 +147,43 @@ async def handle_comment(
 async def issue_comment_event(
     event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
-    await handle_comment(event.data["comment"], event.data["issue"], gh, token)
+    # Pull requests are issues, but issues are not pull requests. Theoretically
+    # this event could be triggered by either, we only want to handle pull
+    # requests.
+    if "pull_request" in event.data["issue"]:
+        await handle_comment(
+            event.data["comment"],
+            event.data["issue"],
+            event.data["issue"]["pull_request"]["url"],
+            gh,
+            token,
+        )
 
 
 @router.register("pull_request_review_comment", action="created")
 async def pull_request_review_comment_event(
     event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
-    await handle_comment(event.data["comment"], event.data["pull_request"], gh, token)
+    await handle_comment(
+        event.data["comment"],
+        event.data["pull_request"],
+        event.data["issue"]["pull_request"]["url"],
+        gh,
+        token,
+    )
 
 
 @router.register("pull_request_review", action="submitted")
 async def pull_request_review_submitted_event(
     event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
-    await handle_comment(event.data["review"], event.data["pull_request"], gh, token)
+    await handle_comment(
+        event.data["review"],
+        event.data["pull_request"],
+        event.data["issue"]["pull_request"]["url"],
+        gh,
+        token,
+    )
     if event.data["review"]["state"] == "changes_requested":
         await set_issue_status(event.data["pull_request"], "needs_work", gh, token)
 
