@@ -169,7 +169,7 @@ async def pull_request_review_comment_event(
     await handle_comment(
         event.data["comment"],
         event.data["pull_request"],
-        event.data["issue"]["pull_request"]["url"],
+        event.data["pull_request"]["url"],
         gh,
         token,
     )
@@ -182,7 +182,7 @@ async def pull_request_review_submitted_event(
     await handle_comment(
         event.data["review"],
         event.data["pull_request"],
-        event.data["issue"]["pull_request"]["url"],
+        event.data["pull_request"]["url"],
         gh,
         token,
     )
