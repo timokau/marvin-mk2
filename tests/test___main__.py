@@ -11,9 +11,13 @@ from marvin import __main__ as main
 class GitHubAPIMock:
     def __init__(self) -> None:
         self.post_data: List[Tuple[str, Dict[str, Any]]] = []
+        self.delete_urls: List[str] = []
 
     async def post(self, url: str, oauth_token: str, data: Dict[str, Any]) -> None:
         self.post_data.append((url, data))
+
+    async def delete(self, url: str, oauth_token: str) -> None:
+        self.delete_urls.append(url)
 
 
 async def test_adds_needs_review_label() -> None:
@@ -34,3 +38,31 @@ async def test_adds_needs_review_label() -> None:
     gh = GitHubAPIMock()
     await main.router.dispatch(event, gh, token="fake-token")
     assert gh.post_data == [("issue-url/labels", {"labels": ["needs_review"]})]
+
+
+async def test_removes_old_status_labels_on_new_status() -> None:
+    data = {
+        "action": "created",
+        "issue": {
+            "url": "issue-url",
+            "pull_request": {"url": "pr-url"},
+            "user": {"id": 42, "login": "somebody"},
+            "labels": [
+                {"name": "marvin"},
+                {"name": "needs_work"},
+                {"name": "needs_merge"},
+            ],
+        },
+        "comment": {
+            "body": "/status needs_review",
+            "user": {"id": 42, "login": "somebody"},
+        },
+    }
+    event = sansio.Event(data, event="issue_comment", delivery_id="1")
+    gh = GitHubAPIMock()
+    await main.router.dispatch(event, gh, token="fake-token")
+    assert gh.post_data == [("issue-url/labels", {"labels": ["needs_review"]})]
+    assert set(gh.delete_urls) == {
+        "issue-url/labels/needs_merge",
+        "issue-url/labels/needs_work",
+    }
