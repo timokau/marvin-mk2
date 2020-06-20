@@ -179,6 +179,8 @@ async def pull_request_review_comment_event(
 async def pull_request_review_submitted_event(
     event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
+    if event.data["review"]["state"] == "changes_requested":
+        await set_issue_status(event.data["pull_request"], "needs_work", gh, token)
     await handle_comment(
         event.data["review"],
         event.data["pull_request"],
@@ -186,8 +188,6 @@ async def pull_request_review_submitted_event(
         gh,
         token,
     )
-    if event.data["review"]["state"] == "changes_requested":
-        await set_issue_status(event.data["pull_request"], "needs_work", gh, token)
 
 
 @router.register("pull_request", action="synchronize")
