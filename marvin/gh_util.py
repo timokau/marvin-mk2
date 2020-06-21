@@ -5,7 +5,9 @@ from typing import List
 from gidgethub.aiohttp import GitHubAPI
 
 
-async def search_issues(gh: GitHubAPI, query_parameters: List[str],) -> Dict[str, Any]:
+async def search_issues(
+    gh: GitHubAPI, token: str, query_parameters: List[str],
+) -> Dict[str, Any]:
     """Search github issues and pull requests.
 
     As documented here:
@@ -14,4 +16,6 @@ async def search_issues(gh: GitHubAPI, query_parameters: List[str],) -> Dict[str
     A common query string is likely "repo:NixOS/nixpkgs".
     """
     query = "+".join(query_parameters)
-    return await gh.getitem(f"https://api.github.com/search/issues?q={query}")
+    return await gh.getitem(
+        f"https://api.github.com/search/issues?q={query}", oauth_token=token
+    )
