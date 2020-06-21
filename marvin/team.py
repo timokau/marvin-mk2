@@ -1,3 +1,5 @@
+from datetime import date
+from datetime import timedelta
 import random
 from typing import Any
 from typing import Awaitable
@@ -6,6 +8,8 @@ from typing import Dict
 from typing import Optional
 
 from gidgethub import aiohttp as gh_aiohttp
+
+from marvin import gh_util
 
 
 class Member:
@@ -28,7 +32,35 @@ async def fetch_gist_content(gh: gh_aiohttp.GitHubAPI, gist_id: str) -> str:
     return gist_file["content"]
 
 
-def gist_controlled(gist_id: str,) -> Callable[[gh_aiohttp.GitHubAPI], Awaitable[bool]]:
+def active_prs_below_limit(
+    user: str, days: int, limit: int
+) -> Callable[[gh_aiohttp.GitHubAPI], Awaitable[bool]]:
+    """Determine whether a given active PR limit over a timeframe has already been reached.
+
+    This searches GitHub for recently active nixpkgs PRs the user is involved
+    in (ignoring any activity after the PR was merged) and compares the number
+    of results to a limit. This is useful when you want to only get a request
+    for new reviews when your current open-source work "plate" is not yet full.
+    """
+
+    async def decision_function(gh: gh_aiohttp.GitHubAPI) -> bool:
+        # days-1 since today is automatically counted
+        timeframe_start = (date.today() - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+        search_results = await gh_util.search_issues(
+            gh,
+            query_parameters=[
+                "repo:NixOS/nixpkgs",
+                "involves:timokau",
+                f"updated:>={timeframe_start}",
+                f"-merged:<{timeframe_start}",
+            ],
+        )
+        return search_results["total_count"] < limit
+
+    return decision_function
+
+
+def gist_controlled(gist_id: str) -> Callable[[gh_aiohttp.GitHubAPI], Awaitable[bool]]:
     """Make a decision function that defers its decision to a github gist.
 
     This enables decentralized control. People can decide to enable or disable
@@ -47,6 +79,10 @@ TEAM = {
         gh_name="timokau",
         request_allowed=gist_controlled("5f50d3eab2a14b77dbdb65d2bb2df544"),
         can_merge=True,
+    ),
+    Member(
+        gh_name="timokau",
+        request_allowed=active_prs_below_limit("timokau", days=1, limit=3),
     ),
 }
 
