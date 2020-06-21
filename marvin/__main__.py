@@ -133,7 +133,9 @@ async def handle_comment(
                 )
             else:
                 await set_issue_status(issue, "needs_merge", gh, token)
-                reviewer = await get_reviewer(gh, issue, merge_permission_needed=True)
+                reviewer = await get_reviewer(
+                    gh, token, issue, merge_permission_needed=True
+                )
                 if reviewer is not None:
                     print(
                         f"Requesting review (merge) from {reviewer} for {pull_request_url}."
