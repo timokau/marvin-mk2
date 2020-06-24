@@ -7,10 +7,10 @@ from typing import List
 
 import aiohttp
 from aiohttp import web
-from gidgethub import aiohttp as gh_aiohttp
 from gidgethub import apps
 from gidgethub import routing
 from gidgethub import sansio
+from gidgethub.aiohttp import GitHubAPI
 
 from marvin.gh_util import request_review
 from marvin.team import get_reviewer
@@ -55,7 +55,7 @@ def find_commands(comment_text: str) -> List[str]:
 
 
 async def set_issue_status(
-    issue: Dict[str, Any], status: str, gh: gh_aiohttp.GitHubAPI, token: str
+    issue: Dict[str, Any], status: str, gh: GitHubAPI, token: str
 ) -> None:
     """Sets the status of an issue while resetting other status labels"""
     assert status in ISSUE_STATUS_LABELS
@@ -83,7 +83,7 @@ async def handle_comment(
     comment: Dict[str, Any],
     issue: Dict[str, Any],
     pull_request_url: str,
-    gh: gh_aiohttp.GitHubAPI,
+    gh: GitHubAPI,
     token: str,
 ) -> None:
     """React to issue comments"""
@@ -142,7 +142,7 @@ async def handle_comment(
 
 @router.register("issue_comment", action="created")
 async def issue_comment_event(
-    event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
+    event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
     # Pull requests are issues, but issues are not pull requests. Theoretically
     # this event could be triggered by either, we only want to handle pull
@@ -159,7 +159,7 @@ async def issue_comment_event(
 
 @router.register("pull_request_review_comment", action="created")
 async def pull_request_review_comment_event(
-    event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
+    event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
     await handle_comment(
         event.data["comment"],
@@ -172,7 +172,7 @@ async def pull_request_review_comment_event(
 
 @router.register("pull_request_review", action="submitted")
 async def pull_request_review_submitted_event(
-    event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
+    event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
     if event.data["review"]["state"] == "changes_requested":
         await set_issue_status(event.data["pull_request"], "needs_work", gh, token)
@@ -187,7 +187,7 @@ async def pull_request_review_submitted_event(
 
 @router.register("pull_request", action="synchronize")
 async def pull_request_synchronize(
-    event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
+    event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
     # Synchronize means that the PRs branch moved, invalidating previous reviews.
     if "needs_merge" in {
@@ -235,7 +235,7 @@ async def process_webhook(request: web.Request) -> web.Response:
         )
 
         async with aiohttp.ClientSession() as session:
-            gh = gh_aiohttp.GitHubAPI(session, BOT_NAME)
+            gh = GitHubAPI(session, BOT_NAME)
 
             # Fetch the installation_access_token once for each webhook delivery.
             # The token is valid for an hour, so it could be cached if we need to
