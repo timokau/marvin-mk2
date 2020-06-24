@@ -12,6 +12,7 @@ from gidgethub import apps
 from gidgethub import routing
 from gidgethub import sansio
 
+from marvin.gh_util import request_review
 from marvin.team import get_reviewer
 
 router = routing.Router()
@@ -51,14 +52,6 @@ def find_commands(comment_text: str) -> List[str]:
         if line.startswith(prefix):
             commands.append(line[len(prefix) :].strip())
     return commands
-
-
-async def request_review(
-    pull_url: str, gh_login: str, gh: gh_aiohttp.GitHubAPI, token: str
-) -> None:
-    """Request a review on a pull request by `gh_login`."""
-    url = f"{pull_url}/requested_reviewers"
-    await gh.post(url, data={"reviewers": [gh_login]}, oauth_token=token)
 
 
 async def set_issue_status(
