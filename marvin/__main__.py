@@ -21,7 +21,7 @@ routes = web.RouteTableDef()
 BOT_NAME = os.environ.get("BOT_NAME", "marvin-mk2")
 
 # List of mutually exclusive status labels
-ISSUE_STATUS_LABELS = {"needs_review", "awaiting_changes", "needs_merge"}
+ISSUE_STATUS_LABELS = {"awaiting_reviewer", "awaiting_changes", "needs_merge"}
 
 GREETING = f"""
 Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hopefully ending with a merge. You can read up on the usage [here](https://github.com/timokau/marvin-mk2/blob/deployed/USAGE.md).
@@ -115,8 +115,8 @@ async def handle_comment(
     for command in commands:
         if command == "status awaiting_changes":
             await set_issue_status(issue, "awaiting_changes", gh, token)
-        elif command == "status needs_review":
-            await set_issue_status(issue, "needs_review", gh, token)
+        elif command == "status awaiting_reviewer":
+            await set_issue_status(issue, "awaiting_reviewer", gh, token)
         elif command == "status needs_merge":
             if by_pr_author:
                 await gh.post(
@@ -195,7 +195,9 @@ async def pull_request_synchronize(
     if "needs_merge" in {
         label["name"] for label in event.data["pull_request"]["labels"]
     }:
-        await set_issue_status(event.data["pull_request"], "needs_review", gh, token)
+        await set_issue_status(
+            event.data["pull_request"], "awaiting_reviewer", gh, token
+        )
 
 
 def is_opted_in(event: sansio.Event) -> bool:

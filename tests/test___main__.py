@@ -20,7 +20,7 @@ class GitHubAPIMock:
         self.delete_urls.append(url)
 
 
-async def test_adds_needs_review_label() -> None:
+async def test_adds_awaiting_reviewer_label() -> None:
     data = {
         "action": "created",
         "issue": {
@@ -30,14 +30,14 @@ async def test_adds_needs_review_label() -> None:
             "labels": [{"name": "marvin"}],
         },
         "comment": {
-            "body": "/status needs_review",
+            "body": "/status awaiting_reviewer",
             "user": {"id": 42, "login": "somebody"},
         },
     }
     event = sansio.Event(data, event="issue_comment", delivery_id="1")
     gh = GitHubAPIMock()
     await main.router.dispatch(event, gh, token="fake-token")
-    assert gh.post_data == [("issue-url/labels", {"labels": ["needs_review"]})]
+    assert gh.post_data == [("issue-url/labels", {"labels": ["awaiting_reviewer"]})]
 
 
 async def test_removes_old_status_labels_on_new_status() -> None:
@@ -54,14 +54,14 @@ async def test_removes_old_status_labels_on_new_status() -> None:
             ],
         },
         "comment": {
-            "body": "/status needs_review",
+            "body": "/status awaiting_reviewer",
             "user": {"id": 42, "login": "somebody"},
         },
     }
     event = sansio.Event(data, event="issue_comment", delivery_id="1")
     gh = GitHubAPIMock()
     await main.router.dispatch(event, gh, token="fake-token")
-    assert gh.post_data == [("issue-url/labels", {"labels": ["needs_review"]})]
+    assert gh.post_data == [("issue-url/labels", {"labels": ["awaiting_reviewer"]})]
     assert set(gh.delete_urls) == {
         "issue-url/labels/needs_merge",
         "issue-url/labels/awaiting_changes",
@@ -77,7 +77,7 @@ async def test_responds_to_pull_request_summary_commands() -> None:
             "labels": [{"name": "marvin"}, {"name": "needs_merge"}],
         },
         "review": {
-            "body": "/status needs_review",
+            "body": "/status awaiting_reviewer",
             "state": "changes_requested",
             "user": {"id": 42, "login": "somebody"},
         },
@@ -87,7 +87,7 @@ async def test_responds_to_pull_request_summary_commands() -> None:
     await main.router.dispatch(event, gh, token="fake-token")
     assert gh.post_data == [
         ("pr-url/labels", {"labels": ["awaiting_changes"]}),
-        ("pr-url/labels", {"labels": ["needs_review"]}),
+        ("pr-url/labels", {"labels": ["awaiting_reviewer"]}),
     ]
     assert set(gh.delete_urls) == {
         "pr-url/labels/needs_merge",
