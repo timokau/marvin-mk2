@@ -21,7 +21,7 @@ routes = web.RouteTableDef()
 BOT_NAME = os.environ.get("BOT_NAME", "marvin-mk2")
 
 # List of mutually exclusive status labels
-ISSUE_STATUS_LABELS = {"awaiting_reviewer", "awaiting_changes", "needs_merge"}
+ISSUE_STATUS_LABELS = {"awaiting_reviewer", "awaiting_changes", "needs_merger"}
 
 GREETING = f"""
 Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hopefully ending with a merge. You can read up on the usage [here](https://github.com/timokau/marvin-mk2/blob/deployed/USAGE.md).
@@ -29,7 +29,7 @@ Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hop
 
 
 NO_SELF_REVIEW_TEXT = f"""
-Sorry, you cannot set your own PR to `needs_merge`. Please wait for an external review. You may also actively search out a reviewer by pinging relevant people (look at the history of the files you're changing) or posting on discourse or IRC.
+Sorry, you cannot set your own PR to `needs_merger`. Please wait for an external review. You may also actively search out a reviewer by pinging relevant people (look at the history of the files you're changing) or posting on discourse or IRC.
 """.strip()
 
 
@@ -117,7 +117,7 @@ async def handle_comment(
             await set_issue_status(issue, "awaiting_changes", gh, token)
         elif command == "status awaiting_reviewer":
             await set_issue_status(issue, "awaiting_reviewer", gh, token)
-        elif command == "status needs_merge":
+        elif command == "status needs_merger":
             if by_pr_author:
                 await gh.post(
                     issue["comments_url"],
@@ -125,7 +125,7 @@ async def handle_comment(
                     oauth_token=token,
                 )
             else:
-                await set_issue_status(issue, "needs_merge", gh, token)
+                await set_issue_status(issue, "needs_merger", gh, token)
                 reviewer = await get_reviewer(
                     gh, token, issue, merge_permission_needed=True
                 )
@@ -192,7 +192,7 @@ async def pull_request_synchronize(
     event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
     # Synchronize means that the PRs branch moved, invalidating previous reviews.
-    if "needs_merge" in {
+    if "needs_merger" in {
         label["name"] for label in event.data["pull_request"]["labels"]
     }:
         await set_issue_status(
