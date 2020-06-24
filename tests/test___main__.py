@@ -49,7 +49,7 @@ async def test_removes_old_status_labels_on_new_status() -> None:
             "user": {"id": 42, "login": "somebody"},
             "labels": [
                 {"name": "marvin"},
-                {"name": "needs_work"},
+                {"name": "awaiting_changes"},
                 {"name": "needs_merge"},
             ],
         },
@@ -64,7 +64,7 @@ async def test_removes_old_status_labels_on_new_status() -> None:
     assert gh.post_data == [("issue-url/labels", {"labels": ["needs_review"]})]
     assert set(gh.delete_urls) == {
         "issue-url/labels/needs_merge",
-        "issue-url/labels/needs_work",
+        "issue-url/labels/awaiting_changes",
     }
 
 
@@ -86,7 +86,7 @@ async def test_responds_to_pull_request_summary_commands() -> None:
     gh = GitHubAPIMock()
     await main.router.dispatch(event, gh, token="fake-token")
     assert gh.post_data == [
-        ("pr-url/labels", {"labels": ["needs_work"]}),
+        ("pr-url/labels", {"labels": ["awaiting_changes"]}),
         ("pr-url/labels", {"labels": ["needs_review"]}),
     ]
     assert set(gh.delete_urls) == {

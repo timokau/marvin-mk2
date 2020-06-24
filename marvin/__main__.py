@@ -21,7 +21,7 @@ routes = web.RouteTableDef()
 BOT_NAME = os.environ.get("BOT_NAME", "marvin-mk2")
 
 # List of mutually exclusive status labels
-ISSUE_STATUS_LABELS = {"needs_review", "needs_work", "needs_merge"}
+ISSUE_STATUS_LABELS = {"needs_review", "awaiting_changes", "needs_merge"}
 
 GREETING = f"""
 Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hopefully ending with a merge. You can read up on the usage [here](https://github.com/timokau/marvin-mk2/blob/deployed/USAGE.md).
@@ -113,8 +113,8 @@ async def handle_comment(
     # Only handle one command for now, since a command can modify the issue and
     # we'd need to keep track of that.
     for command in commands:
-        if command == "status needs_work":
-            await set_issue_status(issue, "needs_work", gh, token)
+        if command == "status awaiting_changes":
+            await set_issue_status(issue, "awaiting_changes", gh, token)
         elif command == "status needs_review":
             await set_issue_status(issue, "needs_review", gh, token)
         elif command == "status needs_merge":
@@ -175,7 +175,9 @@ async def pull_request_review_submitted_event(
     event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
     if event.data["review"]["state"] == "changes_requested":
-        await set_issue_status(event.data["pull_request"], "needs_work", gh, token)
+        await set_issue_status(
+            event.data["pull_request"], "awaiting_changes", gh, token
+        )
     await handle_comment(
         event.data["review"],
         event.data["pull_request"],
