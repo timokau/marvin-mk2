@@ -8,14 +8,12 @@ from gidgethub import sansio
 from gidgethub.aiohttp import GitHubAPI
 
 from marvin.gh_util import request_review
+from marvin.status import set_issue_status
 from marvin.team import get_reviewer
 
 router = routing.Router()
 
 BOT_NAME = os.environ.get("BOT_NAME", "marvin-mk2")
-
-# List of mutually exclusive status labels
-ISSUE_STATUS_LABELS = {"awaiting_reviewer", "awaiting_changes", "needs_merger"}
 
 GREETING = f"""
 Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hopefully ending with a merge. You can read up on the usage [here](https://github.com/timokau/marvin-mk2/blob/deployed/USAGE.md).
