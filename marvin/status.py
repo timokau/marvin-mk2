@@ -18,10 +18,11 @@ ISSUE_STATUS_LABELS = {
     "awaiting_reviewer",
     "awaiting_changes",
     "needs_merger",
+    "awaiting_merger",
 }
 
 NO_SELF_REVIEW_TEXT = f"""
-Sorry, you cannot set your own PR to `needs_merger`. Please wait for an external review. You may also actively search out a reviewer by pinging relevant people (look at the history of the files you're changing) or posting on discourse or IRC.
+Sorry, you cannot set your own PR to `needs_merger` or `awaiting_merger`. Please wait for an external review. You may also actively search out a reviewer by pinging relevant people (look at the history of the files you're changing) or posting on discourse or IRC.
 """.strip()
 
 
@@ -108,3 +109,22 @@ async def needs_merger_command(
             await request_review(pull_request_url, "timokau", gh, token)
         else:
             print(f"No reviewer found for {pull_request_url}.")
+
+
+@command_router.register_command("/status awaiting_merger")
+async def awaiting_merger_command(
+    gh: GitHubAPI,
+    token: str,
+    issue: Dict[str, Any],
+    comment: Dict[str, Any],
+    **kwargs: Any,
+) -> None:
+    by_pr_author = issue["user"]["id"] == comment["user"]["id"]
+    if by_pr_author:
+        await gh.post(
+            issue["comments_url"],
+            data={"body": NO_SELF_REVIEW_TEXT},
+            oauth_token=token,
+        )
+    else:
+        await set_issue_status(issue, "awaiting_merger", gh, token)

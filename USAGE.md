@@ -5,7 +5,8 @@ This bot allows everybody to change a PRs status with a simple comment of the fo
 - `needs_reviewer`, if the PR is ready for review and needs a new reviewer (because it does not yet have one or the reviewer is unresponsive)
 - `awaiting_reviewer`, if the PR is in review (i.e. at least one reviewer is involved in the discussion or requested) and is blocked on feedback from the reviewer.
 - `awaiting_changes` if the PR in its current form is not ready yet. Issues of this state are usually only actionable to the PR author, although outside help is of course also possible.
-- `needs_merger` can be set by reviewers who do not have merge permission but *would merge this PR if they could*. Think of this as a merge-button by proxy. PRs of this state are actionable for contributors with merge permission. These contributors may have further feedback, but the reviewer should make an honest effort to anticipate the feedback and get all issues resolved *before* setting the state to `needs_merger`.
+- `needs_merger` if the PR has been reviewed and the reviewer *would merge this PR if they could*, but does not have the permission to do so. Think of this as a merge-button by proxy. PRs of this state are actionable for contributors with merge permission. These contributors may have further feedback, but the reviewer should make an honest effort to anticipate the feedback and get all issues resolved *before* setting the status to `needs_merger`.
+- `awaiting_merger` if a reviewer with merge permission has been assigned but has not responded yet.
 
 # Tips for Reviewers
 
