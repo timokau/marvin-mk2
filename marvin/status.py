@@ -13,7 +13,12 @@ router = routing.Router()
 command_router = CommandRouter()
 
 # List of mutually exclusive status labels
-ISSUE_STATUS_LABELS = {"awaiting_reviewer", "awaiting_changes", "needs_merger"}
+ISSUE_STATUS_LABELS = {
+    "needs_reviewer",
+    "awaiting_reviewer",
+    "awaiting_changes",
+    "needs_merger",
+}
 
 NO_SELF_REVIEW_TEXT = f"""
 Sorry, you cannot set your own PR to `needs_merger`. Please wait for an external review. You may also actively search out a reviewer by pinging relevant people (look at the history of the files you're changing) or posting on discourse or IRC.
@@ -56,6 +61,13 @@ async def pull_request_synchronize(
         await set_issue_status(
             event.data["pull_request"], "awaiting_reviewer", gh, token
         )
+
+
+@command_router.register_command("/status needs_reviewer")
+async def needs_reviewer_command(
+    gh: GitHubAPI, token: str, issue: Dict[str, Any], **kwargs: Any
+) -> None:
+    await set_issue_status(issue, "needs_reviewer", gh, token)
 
 
 @command_router.register_command("/status awaiting_changes")
