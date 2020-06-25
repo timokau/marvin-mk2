@@ -1,46 +1,24 @@
 import os
+import re
 from typing import Any
 from typing import Dict
-from typing import List
 
 from gidgethub import routing
 from gidgethub import sansio
 from gidgethub.aiohttp import GitHubAPI
 
-from marvin.gh_util import request_review
+from marvin import status
+from marvin.command_router import CommandRouter
 from marvin.status import set_issue_status
-from marvin.team import get_reviewer
 
 router = routing.Router()
+command_router = CommandRouter([status.command_router])
 
 BOT_NAME = os.environ.get("BOT_NAME", "marvin-mk2")
 
 GREETING = f"""
 Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hopefully ending with a merge. You can read up on the usage [here](https://github.com/timokau/marvin-mk2/blob/deployed/USAGE.md).
 """.rstrip()
-
-NO_SELF_REVIEW_TEXT = f"""
-Sorry, you cannot set your own PR to `needs_merger`. Please wait for an external review. You may also actively search out a reviewer by pinging relevant people (look at the history of the files you're changing) or posting on discourse or IRC.
-""".strip()
-
-
-def find_commands(comment_text: str) -> List[str]:
-    r"""Filters a comment for commands.
-
-    >>> find_commands("This is a comment without a command.")
-    []
-    >>> find_commands("This includes a proper command.\n/command with multiple words")
-    ['command with multiple words']
-    >>> find_commands("//test\n/another  ")
-    ['/test', 'another']
-    """
-
-    commands = []
-    for line in comment_text.splitlines():
-        prefix = "/"
-        if line.startswith(prefix):
-            commands.append(line[len(prefix) :].strip())
-    return commands
 
 
 async def handle_comment(
@@ -60,9 +38,8 @@ async def handle_comment(
 
     # check opt-in
     pr_labels = {label["name"] for label in issue["labels"]}
-    commands = find_commands(comment_text)
     if "marvin" not in pr_labels:
-        if by_pr_author and "marvin opt-in" == commands[0]:
+        if by_pr_author and "marvin opt-in" in comment_text:
             issue_url = issue.get("issue_url", issue["url"])
             await gh.post(
                 issue_url + "/labels", data={"labels": ["marvin"]}, oauth_token=token,
@@ -70,38 +47,21 @@ async def handle_comment(
             await gh.post(
                 issue["comments_url"], data={"body": GREETING}, oauth_token=token,
             )
-            commands = commands[1:]
         else:
             return
 
-    # Only handle one command for now, since a command can modify the issue and
-    # we'd need to keep track of that.
-    for command in commands:
-        if command == "status awaiting_changes":
-            await set_issue_status(issue, "awaiting_changes", gh, token)
-        elif command == "status awaiting_reviewer":
-            await set_issue_status(issue, "awaiting_reviewer", gh, token)
-        elif command == "status needs_merger":
-            if by_pr_author:
-                await gh.post(
-                    issue["comments_url"],
-                    data={"body": NO_SELF_REVIEW_TEXT},
-                    oauth_token=token,
-                )
-            else:
-                await set_issue_status(issue, "needs_merger", gh, token)
-                reviewer = await get_reviewer(
-                    gh, token, issue, merge_permission_needed=True
-                )
-                if reviewer is not None:
-                    print(
-                        f"Requesting review (merge) from {reviewer} for {pull_request_url}."
-                    )
-                    await request_review(pull_request_url, "timokau", gh, token)
-                else:
-                    print(f"No reviewer found for {pull_request_url}.")
-        else:
-            print(f"Unknown command: {command}")
+    for regex in command_router.command_handlers.keys():
+        for _ in re.findall(regex, comment_text):
+            await command_router.command_handlers[regex](
+                gh=gh,
+                token=token,
+                issue=issue,
+                pull_request_url=pull_request_url,
+                comment=comment,
+            )
+            # Only handle one command for now, since a command can modify the issue and
+            # we'd need to keep track of that.
+            return
 
 
 @router.register("issue_comment", action="created")

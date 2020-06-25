@@ -5,10 +5,19 @@ from gidgethub import routing
 from gidgethub import sansio
 from gidgethub.aiohttp import GitHubAPI
 
+from marvin.command_router import CommandRouter
+from marvin.gh_util import request_review
+from marvin.team import get_reviewer
+
 router = routing.Router()
+command_router = CommandRouter()
 
 # List of mutually exclusive status labels
 ISSUE_STATUS_LABELS = {"awaiting_reviewer", "awaiting_changes", "needs_merger"}
+
+NO_SELF_REVIEW_TEXT = f"""
+Sorry, you cannot set your own PR to `needs_merger`. Please wait for an external review. You may also actively search out a reviewer by pinging relevant people (look at the history of the files you're changing) or posting on discourse or IRC.
+""".strip()
 
 
 async def set_issue_status(
@@ -47,3 +56,43 @@ async def pull_request_synchronize(
         await set_issue_status(
             event.data["pull_request"], "awaiting_reviewer", gh, token
         )
+
+
+@command_router.register_command("/status awaiting_changes")
+async def awaiting_changes_command(
+    gh: GitHubAPI, token: str, issue: Dict[str, Any], **kwargs: Any
+) -> None:
+    await set_issue_status(issue, "awaiting_changes", gh, token)
+
+
+@command_router.register_command("/status awaiting_reviewer")
+async def awaiting_reviewer_command(
+    gh: GitHubAPI, token: str, issue: Dict[str, Any], **kwargs: Any
+) -> None:
+    await set_issue_status(issue, "awaiting_reviewer", gh, token)
+
+
+@command_router.register_command("/status needs_merger")
+async def needs_merger_command(
+    gh: GitHubAPI,
+    token: str,
+    issue: Dict[str, Any],
+    pull_request_url: str,
+    comment: Dict[str, Any],
+    **kwargs: Any,
+) -> None:
+    by_pr_author = issue["user"]["id"] == comment["user"]["id"]
+    if by_pr_author:
+        await gh.post(
+            issue["comments_url"],
+            data={"body": NO_SELF_REVIEW_TEXT},
+            oauth_token=token,
+        )
+    else:
+        await set_issue_status(issue, "needs_merger", gh, token)
+        reviewer = await get_reviewer(gh, token, issue, merge_permission_needed=True)
+        if reviewer is not None:
+            print(f"Requesting review (merge) from {reviewer} for {pull_request_url}.")
+            await request_review(pull_request_url, "timokau", gh, token)
+        else:
+            print(f"No reviewer found for {pull_request_url}.")
