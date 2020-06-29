@@ -66,29 +66,3 @@ async def test_removes_old_status_labels_on_new_status() -> None:
         "issue-url/labels/needs_merger",
         "issue-url/labels/awaiting_changes",
     }
-
-
-async def test_responds_to_pull_request_summary_commands() -> None:
-    data = {
-        "action": "submitted",
-        "pull_request": {
-            "url": "pr-url",
-            "user": {"id": 42, "login": "somebody"},
-            "labels": [{"name": "marvin"}, {"name": "needs_merger"}],
-        },
-        "review": {
-            "body": "/status awaiting_reviewer",
-            "state": "changes_requested",
-            "user": {"id": 42, "login": "somebody"},
-        },
-    }
-    event = sansio.Event(data, event="pull_request_review", delivery_id="1")
-    gh = GitHubAPIMock()
-    await main.router.dispatch(event, gh, token="fake-token")
-    assert gh.post_data == [
-        ("pr-url/labels", {"labels": ["awaiting_changes"]}),
-        ("pr-url/labels", {"labels": ["awaiting_reviewer"]}),
-    ]
-    assert set(gh.delete_urls) == {
-        "pr-url/labels/needs_merger",
-    }
