@@ -66,3 +66,26 @@ async def test_removes_old_status_labels_on_new_status() -> None:
         "issue-url/labels/needs_merger",
         "issue-url/labels/awaiting_changes",
     }
+
+
+async def test_sets_to_awaiting_changes_on_non_author_comment() -> None:
+    data = {
+        "action": "created",
+        "issue": {
+            "url": "issue-url",
+            "pull_request": {"url": "pr-url"},
+            "user": {"id": 42, "login": "somebody"},
+            "labels": [{"name": "marvin"}, {"name": "needs_merger"}],
+        },
+        "comment": {
+            "body": "The body is irrelevant.",
+            "user": {"id": 43, "login": "somebody_else"},
+        },
+    }
+    event = sansio.Event(data, event="issue_comment", delivery_id="1")
+    gh = GitHubAPIMock()
+    await main.router.dispatch(event, gh, token="fake-token")
+    assert gh.post_data == [("issue-url/labels", {"labels": ["awaiting_changes"]})]
+    assert set(gh.delete_urls) == {
+        "issue-url/labels/needs_merger",
+    }

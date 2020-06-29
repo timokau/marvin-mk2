@@ -1,5 +1,4 @@
 import os
-import re
 from typing import Any
 from typing import Dict
 
@@ -46,18 +45,17 @@ async def handle_comment(
         else:
             return
 
-    for regex in command_router.command_handlers.keys():
-        for _ in re.findall(regex, comment_text):
-            await command_router.command_handlers[regex](
-                gh=gh,
-                token=token,
-                issue=issue,
-                pull_request_url=pull_request_url,
-                comment=comment,
-            )
-            # Only handle one command for now, since a command can modify the issue and
-            # we'd need to keep track of that.
-            return
+    for command in command_router.find_commands(comment_text):
+        await command_router.command_handlers[command](
+            gh=gh,
+            token=token,
+            issue=issue,
+            pull_request_url=pull_request_url,
+            comment=comment,
+        )
+        # Only handle one command for now, since a command can modify the issue and
+        # we'd need to keep track of that.
+        return
 
 
 @router.register("issue_comment", action="created")

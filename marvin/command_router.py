@@ -1,3 +1,4 @@
+import re
 from typing import Any
 from typing import Awaitable
 from typing import Callable
@@ -19,3 +20,11 @@ class CommandRouter:
             return function
 
         return decorator
+
+    def find_commands(self, body: str) -> List[str]:
+        """Find all commands in a comment."""
+        commands = []
+        for regex in self.command_handlers.keys():
+            for _ in re.findall(regex, body):
+                commands.append(regex)
+        return commands

@@ -64,6 +64,25 @@ async def pull_request_synchronize(
         )
 
 
+@router.register("issue_comment", action="created")
+async def issue_comment_event(
+    event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
+) -> None:
+    # If the command issues an explicit command, that should override default
+    # behaviour.
+    if len(command_router.find_commands(event.data["comment"]["body"])) > 0:
+        return
+
+    by_pr_author = (
+        event.data["issue"]["user"]["id"] == event.data["comment"]["user"]["id"]
+    )
+    if not by_pr_author:
+        # A new comment by somebody else is likely a review asking for
+        # clarification or changes (provided it doesn't explicitly contain a
+        # status command).
+        await set_issue_status(event.data["issue"], "awaiting_changes", gh, token)
+
+
 @command_router.register_command("/status needs_reviewer")
 async def needs_reviewer_command(
     gh: GitHubAPI, token: str, issue: Dict[str, Any], **kwargs: Any
