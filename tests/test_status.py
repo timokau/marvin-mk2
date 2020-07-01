@@ -74,12 +74,12 @@ async def test_sets_to_awaiting_changes_on_non_author_comment() -> None:
         "issue": {
             "url": "issue-url",
             "pull_request": {"url": "pr-url"},
-            "user": {"id": 42, "login": "somebody"},
+            "user": {"id": 42, "login": "author"},
             "labels": [{"name": "marvin"}, {"name": "needs_merger"}],
         },
         "comment": {
             "body": "The body is irrelevant.",
-            "user": {"id": 43, "login": "somebody_else"},
+            "user": {"id": 43, "login": "non-author"},
         },
     }
     event = sansio.Event(data, event="issue_comment", delivery_id="1")
@@ -89,3 +89,47 @@ async def test_sets_to_awaiting_changes_on_non_author_comment() -> None:
     assert set(gh.delete_urls) == {
         "issue-url/labels/needs_merger",
     }
+
+
+async def test_sets_awaiting_changes_to_awaiting_review_on_author_comment() -> None:
+    data = {
+        "action": "created",
+        "issue": {
+            "url": "issue-url",
+            "pull_request": {"url": "pr-url"},
+            "user": {"id": 42, "login": "author"},
+            "labels": [{"name": "marvin"}, {"name": "awaiting_changes"}],
+        },
+        "comment": {
+            "body": "The body is irrelevant.",
+            "user": {"id": 42, "login": "author"},
+        },
+    }
+    event = sansio.Event(data, event="issue_comment", delivery_id="1")
+    gh = GitHubAPIMock()
+    await main.router.dispatch(event, gh, token="fake-token")
+    assert gh.post_data == [("issue-url/labels", {"labels": ["awaiting_reviewer"]})]
+    assert set(gh.delete_urls) == {
+        "issue-url/labels/awaiting_changes",
+    }
+
+
+async def test_does_not_modify_needs_merge_on_author_comment() -> None:
+    data = {
+        "action": "created",
+        "issue": {
+            "url": "issue-url",
+            "pull_request": {"url": "pr-url"},
+            "user": {"id": 42, "login": "author"},
+            "labels": [{"name": "marvin"}, {"name": "needs_merge"}],
+        },
+        "comment": {
+            "body": "The body is irrelevant.",
+            "user": {"id": 42, "login": "author"},
+        },
+    }
+    event = sansio.Event(data, event="issue_comment", delivery_id="1")
+    gh = GitHubAPIMock()
+    await main.router.dispatch(event, gh, token="fake-token")
+    assert gh.post_data == []
+    assert gh.delete_urls == []

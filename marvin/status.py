@@ -76,7 +76,13 @@ async def issue_comment_event(
     by_pr_author = (
         event.data["issue"]["user"]["id"] == event.data["comment"]["user"]["id"]
     )
-    if not by_pr_author:
+    if by_pr_author:
+        label_names = {label["name"] for label in event.data["issue"]["labels"]}
+        if "awaiting_changes" in label_names:
+            # A new comment by the author is probably some justification or request
+            # for clarification. Action of the reviewer is needed.
+            await set_issue_status(event.data["issue"], "awaiting_reviewer", gh, token)
+    else:
         # A new comment by somebody else is likely a review asking for
         # clarification or changes (provided it doesn't explicitly contain a
         # status command).
