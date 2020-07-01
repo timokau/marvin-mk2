@@ -64,6 +64,7 @@ async def pull_request_synchronize(
         )
 
 
+@router.register("pull_request_review_comment", action="created")
 @router.register("issue_comment", action="created")
 async def issue_comment_event(
     event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
