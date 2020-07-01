@@ -30,11 +30,7 @@ async def handle_comment(
 ) -> None:
     """React to issue comments"""
     comment_text = comment["body"]
-    comment_author_login = comment["user"]["login"]
     by_pr_author = issue["user"]["id"] == comment["user"]["id"]
-
-    if comment_author_login in [BOT_NAME, BOT_NAME + "[bot]"]:
-        return
 
     # check opt-in
     pr_labels = {label["name"] for label in issue["labels"]}

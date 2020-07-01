@@ -18,6 +18,15 @@ routes = web.RouteTableDef()
 BOT_NAME = os.environ.get("BOT_NAME", "marvin-mk2")
 
 
+def is_bot_comment(event: sansio.Event) -> bool:
+    """Determine whether an event was triggered by our own comments."""
+    if "comment" not in event.data:
+        return False
+    comment = event.data["comment"]
+    comment_author_login = comment["user"]["login"]
+    return comment_author_login in [BOT_NAME, BOT_NAME + "[bot]"]
+
+
 def is_opted_in(event: sansio.Event) -> bool:
     """Perform a conservative opt-in check.
 
@@ -70,7 +79,7 @@ async def process_webhook(request: web.Request) -> web.Response:
                 private_key=request.app["gh_private_key"],
             )
 
-            if is_opted_in(event):
+            if is_opted_in(event) and not is_bot_comment(event):
                 # call the appropriate callback for the event
                 await router.dispatch(event, gh, installation_access_token["token"])
 
