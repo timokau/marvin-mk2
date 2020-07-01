@@ -90,6 +90,18 @@ async def issue_comment_event(
         await set_issue_status(event.data["issue"], "awaiting_changes", gh, token)
 
 
+@router.register("pull_request_review", action="submitted")
+async def pull_request_review_submitted_event(
+    event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
+) -> None:
+    if len(command_router.find_commands(event.data["review"]["body"])) > 0:
+        return
+    if event.data["review"]["state"] == "changes_requested":
+        await set_issue_status(
+            event.data["pull_request"], "awaiting_changes", gh, token
+        )
+
+
 @command_router.register_command("/status needs_reviewer")
 async def needs_reviewer_command(
     gh: GitHubAPI, token: str, issue: Dict[str, Any], **kwargs: Any

@@ -8,7 +8,6 @@ from gidgethub.aiohttp import GitHubAPI
 
 from marvin import status
 from marvin.command_router import CommandRouter
-from marvin.status import set_issue_status
 
 router = routing.Router()
 command_router = CommandRouter([status.command_router])
@@ -92,10 +91,6 @@ async def pull_request_review_comment_event(
 async def pull_request_review_submitted_event(
     event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
-    if event.data["review"]["state"] == "changes_requested":
-        await set_issue_status(
-            event.data["pull_request"], "awaiting_changes", gh, token
-        )
     await handle_comment(
         event.data["review"],
         event.data["pull_request"],

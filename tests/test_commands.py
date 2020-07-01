@@ -38,7 +38,6 @@ async def test_responds_to_pull_request_summary_commands() -> None:
     gh = GitHubAPIMock()
     await main.router.dispatch(event, gh, token="fake-token")
     assert gh.post_data == [
-        ("pr-url/labels", {"labels": ["awaiting_changes"]}),
         ("pr-url/labels", {"labels": ["awaiting_reviewer"]}),
     ]
     assert set(gh.delete_urls) == {
