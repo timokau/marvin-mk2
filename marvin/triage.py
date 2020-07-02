@@ -88,6 +88,31 @@ async def assign_mergers(gh: GitHubAPI, token: str, repository_name: str) -> Non
             print(f"No reviewer with merge permission found for #{issue['number']}.")
 
 
+async def assign_reviewers(gh: GitHubAPI, token: str, repository_name: str) -> None:
+    print("Assigning reviewers to needs_reviewer PRs")
+    search_results = gh_util.search_issues(
+        gh,
+        token,
+        query_parameters=[
+            f"repo:{repository_name}",
+            "label:needs_reviewer",
+            "sort:created-asc",  # oldest first
+        ],
+    )
+    async for issue in search_results:
+        reviewer = await team.get_reviewer(
+            gh, token, issue, merge_permission_needed=False
+        )
+        if reviewer is not None:
+            print(f"Requesting review from {reviewer} for #{issue['number']}.")
+            await gh_util.request_review(
+                issue["pull_request"]["url"], reviewer, gh, token
+            )
+            await set_issue_status(issue, "awaiting_reviewer", gh, token)
+        else:
+            print(f"No reviewer found for #{issue['number']}.")
+
+
 @command_router.register_command("/marvin triage")
 async def run_triage(gh: GitHubAPI, token: str, **kwargs: Any) -> None:
     repositories = await gh_util.get_installation_repositories(gh, token)
@@ -97,3 +122,4 @@ async def run_triage(gh: GitHubAPI, token: str, **kwargs: Any) -> None:
         await timeout_awaiting_reviewer(gh, token, repository_name)
         await timeout_awaiting_merger(gh, token, repository_name)
         await assign_mergers(gh, token, repository_name)
+        await assign_reviewers(gh, token, repository_name)
