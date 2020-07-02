@@ -24,11 +24,12 @@ class Member:
         self.can_merge = can_merge
 
 
-async def fetch_gist_content(gh: gh_aiohttp.GitHubAPI, token: str, gist_id: str) -> str:
+async def fetch_gist_content(gh: gh_aiohttp.GitHubAPI, gist_id: str) -> str:
     """Fetch the content of a one-file github gist using the API."""
-    gist_response = await gh.getitem(
-        f"https://api.github.com/gists/{gist_id}", oauth_token=token
-    )
+    # Not authenticated on purpose
+    # https://github.community/t/github-apps-gist-api/13806. This may lead to
+    # rate limiting issues in the future.
+    gist_response = await gh.getitem(f"https://api.github.com/gists/{gist_id}")
     # We only support one file per gist, just pick the first one
     gist_file = list(gist_response["files"].values())[0]
     return gist_file["content"]
@@ -74,7 +75,7 @@ def gist_controlled(
     """
 
     async def control_function(gh: gh_aiohttp.GitHubAPI, token: str) -> bool:
-        return (await fetch_gist_content(gh, token, gist_id)).strip() == "enable"
+        return (await fetch_gist_content(gh, gist_id)).strip() == "enable"
 
     return control_function
 
