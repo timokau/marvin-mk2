@@ -11,6 +11,7 @@ from marvin.status import set_issue_status
 command_router = CommandRouter()
 
 AWAITING_REVIEWER_TIMEOUT_SECONDS = 60 * 60 * 24 * 3  # three days
+AWAITING_MERGER_TIMEOUT_SECONDS = 60 * 60 * 24 * 3  # three days
 
 
 async def timeout_awaiting_reviewer(
@@ -38,6 +39,29 @@ async def timeout_awaiting_reviewer(
         await set_issue_status(issue, "needs_reviewer", gh, token)
 
 
+async def timeout_awaiting_merger(
+    gh: GitHubAPI, token: str, repository_name: str
+) -> None:
+    print("Timing out awaiting_merger PRs")
+    search_results = gh_util.search_issues(
+        gh,
+        token,
+        query_parameters=[
+            f"repo:{repository_name}",
+            "label:awaiting_merger",
+            "sort:updated-asc",  # stale first
+        ],
+    )
+    async for issue in search_results:
+        last_updated = datetime.strptime(issue["updated_at"], "%Y-%m-%dT%H:%M:%S%z")
+        age = datetime.now(timezone.utc) - last_updated
+        if age.total_seconds() < AWAITING_MERGER_TIMEOUT_SECONDS:
+            break
+
+        print(f"awaiting_merger -> needs_merger: #{issue['number']} ({issue['title']})")
+        await set_issue_status(issue, "needs_merger", gh, token)
+
+
 @command_router.register_command("/marvin triage")
 async def run_triage(gh: GitHubAPI, token: str, **kwargs: Any) -> None:
     repositories = await gh_util.get_installation_repositories(gh, token)
@@ -45,3 +69,4 @@ async def run_triage(gh: GitHubAPI, token: str, **kwargs: Any) -> None:
         repository_name = repository["full_name"]
         print(f"Running triage on {repository_name}")
         await timeout_awaiting_reviewer(gh, token, repository_name)
+        await timeout_awaiting_merger(gh, token, repository_name)
