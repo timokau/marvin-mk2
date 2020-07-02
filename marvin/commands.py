@@ -7,10 +7,11 @@ from gidgethub import sansio
 from gidgethub.aiohttp import GitHubAPI
 
 from marvin import status
+from marvin import triage
 from marvin.command_router import CommandRouter
 
 router = routing.Router()
-command_router = CommandRouter([status.command_router])
+command_router = CommandRouter([status.command_router, triage.command_router])
 
 BOT_NAME = os.environ.get("BOT_NAME", "marvin-mk2")
 

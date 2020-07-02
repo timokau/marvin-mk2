@@ -48,7 +48,7 @@ def active_prs_below_limit(
     async def decision_function(gh: gh_aiohttp.GitHubAPI, token: str) -> bool:
         # days-1 since today is automatically counted
         timeframe_start = (date.today() - timedelta(days=days - 1)).strftime("%Y-%m-%d")
-        search_results = await gh_util.search_issues(
+        num_results = await gh_util.num_search_results(
             gh,
             token,
             query_parameters=[
@@ -58,7 +58,7 @@ def active_prs_below_limit(
                 f"-merged:<{timeframe_start}",
             ],
         )
-        return search_results["total_count"] < limit
+        return num_results < limit
 
     return decision_function
 
