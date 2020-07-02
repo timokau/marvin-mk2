@@ -6,8 +6,6 @@ from gidgethub import sansio
 from gidgethub.aiohttp import GitHubAPI
 
 from marvin.command_router import CommandRouter
-from marvin.gh_util import request_review
-from marvin.team import get_reviewer
 
 router = routing.Router()
 command_router = CommandRouter()
@@ -141,12 +139,6 @@ async def needs_merger_command(
         )
     else:
         await set_issue_status(issue, "needs_merger", gh, token)
-        reviewer = await get_reviewer(gh, token, issue, merge_permission_needed=True)
-        if reviewer is not None:
-            print(f"Requesting review (merge) from {reviewer} for {pull_request_url}.")
-            await request_review(pull_request_url, "timokau", gh, token)
-        else:
-            print(f"No reviewer found for {pull_request_url}.")
 
 
 @command_router.register_command("/status awaiting_merger")
