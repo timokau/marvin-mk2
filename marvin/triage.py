@@ -7,7 +7,7 @@ from gidgethub.aiohttp import GitHubAPI
 from marvin import gh_util
 from marvin import team
 from marvin.command_router import CommandRouter
-from marvin.status import set_issue_status
+from marvin.gh_util import set_issue_status
 
 command_router = CommandRouter()
 
