@@ -1,206 +1,30 @@
 import os
 import sys
 import traceback
-from typing import Any
-from typing import Dict
-from typing import List
 
 import aiohttp
 from aiohttp import web
-from gidgethub import aiohttp as gh_aiohttp
 from gidgethub import apps
 from gidgethub import routing
 from gidgethub import sansio
+from gidgethub.aiohttp import GitHubAPI
 
-from marvin.team import get_reviewer
+from marvin import commands
+from marvin import constants
+from marvin import status
+from marvin import triage_runner
 
-router = routing.Router()
+router = routing.Router(commands.router, status.router)
 routes = web.RouteTableDef()
 
-BOT_NAME = os.environ.get("BOT_NAME", "marvin-mk2")
 
-# List of mutually exclusive status labels
-ISSUE_STATUS_LABELS = {"needs_review", "needs_work", "needs_merge"}
-
-GREETING = f"""
-Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hopefully ending with a merge. You can read up on the usage [here](https://github.com/timokau/marvin-mk2/blob/deployed/USAGE.md).
-""".rstrip()
-
-
-NO_SELF_REVIEW_TEXT = f"""
-Sorry, you cannot set your own PR to `needs_merge`. Please wait for an external review. You may also actively search out a reviewer by pinging relevant people (look at the history of the files you're changing) or posting on discourse or IRC.
-""".strip()
-
-
-# Unfortunately its not possible to directly listen for mentions
-# https://github.com/dear-github/dear-github/issues/294
-def find_commands(comment_text: str) -> List[str]:
-    r"""Filters a comment for commands.
-
-    >>> find_commands("This is a comment without a command.")
-    []
-    >>> find_commands("This includes a proper command.\n/command with multiple words")
-    ['command with multiple words']
-    >>> find_commands("//test\n/another  ")
-    ['/test', 'another']
-    """
-
-    commands = []
-    for line in comment_text.splitlines():
-        prefix = "/"
-        if line.startswith(prefix):
-            commands.append(line[len(prefix) :].strip())
-    return commands
-
-
-async def request_review(
-    pull_url: str, gh_login: str, gh: gh_aiohttp.GitHubAPI, token: str
-) -> None:
-    """Request a review on a pull request by `gh_login`."""
-    url = f"{pull_url}/requested_reviewers"
-    await gh.post(url, data={"reviewers": [gh_login]}, oauth_token=token)
-
-
-async def set_issue_status(
-    issue: Dict[str, Any], status: str, gh: gh_aiohttp.GitHubAPI, token: str
-) -> None:
-    """Sets the status of an issue while resetting other status labels"""
-    assert status in ISSUE_STATUS_LABELS
-
-    # depending on whether the issue is actually a pull request
-    issue_url = issue.get("issue_url", issue["url"])
-
-    # Labels are mutually exclusive, so clear other labels first.
-    labels = issue["labels"]
-    label_names = {label["name"] for label in labels}
-    # should never be more than one, but better to make it a set anyway
-    status_labels = label_names.intersection(ISSUE_STATUS_LABELS)
-    for label in status_labels:
-        if label == status:  # Don't touch the label we're supposed to set.
-            continue
-        await gh.delete(issue_url + "/labels/" + label, oauth_token=token)
-
-    if status not in status_labels:
-        await gh.post(
-            issue_url + "/labels", data={"labels": [status]}, oauth_token=token,
-        )
-
-
-async def handle_comment(
-    comment: Dict[str, Any],
-    issue: Dict[str, Any],
-    pull_request_url: str,
-    gh: gh_aiohttp.GitHubAPI,
-    token: str,
-) -> None:
-    """React to issue comments"""
-    comment_text = comment["body"]
+def is_bot_comment(event: sansio.Event) -> bool:
+    """Determine whether an event was triggered by our own comments."""
+    if "comment" not in event.data:
+        return False
+    comment = event.data["comment"]
     comment_author_login = comment["user"]["login"]
-    by_pr_author = issue["user"]["id"] == comment["user"]["id"]
-
-    if comment_author_login in [BOT_NAME, BOT_NAME + "[bot]"]:
-        return
-
-    # check opt-in
-    pr_labels = {label["name"] for label in issue["labels"]}
-    commands = find_commands(comment_text)
-    if "marvin" not in pr_labels:
-        if by_pr_author and "marvin opt-in" == commands[0]:
-            issue_url = issue.get("issue_url", issue["url"])
-            await gh.post(
-                issue_url + "/labels", data={"labels": ["marvin"]}, oauth_token=token,
-            )
-            await gh.post(
-                issue["comments_url"], data={"body": GREETING}, oauth_token=token,
-            )
-            commands = commands[1:]
-        else:
-            return
-
-    # Only handle one command for now, since a command can modify the issue and
-    # we'd need to keep track of that.
-    for command in commands:
-        if command == "status needs_work":
-            await set_issue_status(issue, "needs_work", gh, token)
-        elif command == "status needs_review":
-            await set_issue_status(issue, "needs_review", gh, token)
-        elif command == "status needs_merge":
-            if by_pr_author:
-                await gh.post(
-                    issue["comments_url"],
-                    data={"body": NO_SELF_REVIEW_TEXT},
-                    oauth_token=token,
-                )
-            else:
-                await set_issue_status(issue, "needs_merge", gh, token)
-                reviewer = await get_reviewer(
-                    gh, token, issue, merge_permission_needed=True
-                )
-                if reviewer is not None:
-                    print(
-                        f"Requesting review (merge) from {reviewer} for {pull_request_url}."
-                    )
-                    await request_review(pull_request_url, "timokau", gh, token)
-                else:
-                    print(f"No reviewer found for {pull_request_url}.")
-        else:
-            print(f"Unknown command: {command}")
-
-
-@router.register("issue_comment", action="created")
-async def issue_comment_event(
-    event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
-) -> None:
-    # Pull requests are issues, but issues are not pull requests. Theoretically
-    # this event could be triggered by either, we only want to handle pull
-    # requests.
-    if "pull_request" in event.data["issue"]:
-        await handle_comment(
-            event.data["comment"],
-            event.data["issue"],
-            event.data["issue"]["pull_request"]["url"],
-            gh,
-            token,
-        )
-
-
-@router.register("pull_request_review_comment", action="created")
-async def pull_request_review_comment_event(
-    event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
-) -> None:
-    await handle_comment(
-        event.data["comment"],
-        event.data["pull_request"],
-        event.data["pull_request"]["url"],
-        gh,
-        token,
-    )
-
-
-@router.register("pull_request_review", action="submitted")
-async def pull_request_review_submitted_event(
-    event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
-) -> None:
-    if event.data["review"]["state"] == "changes_requested":
-        await set_issue_status(event.data["pull_request"], "needs_work", gh, token)
-    await handle_comment(
-        event.data["review"],
-        event.data["pull_request"],
-        event.data["pull_request"]["url"],
-        gh,
-        token,
-    )
-
-
-@router.register("pull_request", action="synchronize")
-async def pull_request_synchronize(
-    event: sansio.Event, gh: gh_aiohttp.GitHubAPI, token: str, *args: Any, **kwargs: Any
-) -> None:
-    # Synchronize means that the PRs branch moved, invalidating previous reviews.
-    if "needs_merge" in {
-        label["name"] for label in event.data["pull_request"]["labels"]
-    }:
-        await set_issue_status(event.data["pull_request"], "needs_review", gh, token)
+    return comment_author_login in [constants.BOT_NAME, constants.BOT_NAME + "[bot]"]
 
 
 def is_opted_in(event: sansio.Event) -> bool:
@@ -224,7 +48,7 @@ def is_opted_in(event: sansio.Event) -> bool:
     # route the event. We do not act on it here. This is some code duplication,
     # but better safe than sorry.
     by_pr_author = issue["user"]["id"] == comment["user"]["id"]
-    if by_pr_author and "marvin opt-in" in find_commands(comment["body"]):
+    if by_pr_author and "/marvin opt-in" in comment["body"]:
         return True
 
     return False
@@ -242,7 +66,7 @@ async def process_webhook(request: web.Request) -> web.Response:
         )
 
         async with aiohttp.ClientSession() as session:
-            gh = gh_aiohttp.GitHubAPI(session, BOT_NAME)
+            gh = GitHubAPI(session, constants.BOT_NAME)
 
             # Fetch the installation_access_token once for each webhook delivery.
             # The token is valid for an hour, so it could be cached if we need to
@@ -254,8 +78,22 @@ async def process_webhook(request: web.Request) -> web.Response:
                 app_id=request.app["gh_app_id"],
                 private_key=request.app["gh_private_key"],
             )
+            # Make sure a triage runner exists for this installation. Triage
+            # runners are only started once at least one webhook event was
+            # received. That's not ideal, but getting access to the list of
+            # installations would otherwise be a pain.
+            if installation_id not in triage_runner.runners:
+                triage_runner.runners[installation_id] = triage_runner.TriageRunner(
+                    installation_id,
+                    gh_app_id=request.app["gh_app_id"],
+                    gh_private_key=request.app["gh_private_key"],
+                    min_delay_seconds=60,
+                    max_delay_seconds=60 * 60 * 24,
+                )
+                print(f"Starting a triage runner for installation {installation_id}")
+                triage_runner.runners[installation_id].start()
 
-            if is_opted_in(event):
+            if is_opted_in(event) and not is_bot_comment(event):
                 # call the appropriate callback for the event
                 await router.dispatch(event, gh, installation_access_token["token"])
 

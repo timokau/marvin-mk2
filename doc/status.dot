@@ -1,0 +1,23 @@
+/* Render with `dot -Tsvg status.dot -o status.svg` */
+digraph "PR flow" {
+  "unlabeled" [shape=box, label="(unlabeled) Does not need a reviewer" ]
+  "needs_reviewer" [shape=box, color="blue", penwidth=2, label="(needs_reviewer) Needs new reviewer"]
+  "awaiting_changes" [shape=box, label="(awaiting_changes) In Review & Last update by Author" ]
+  "awaiting_reviewer" [shape=box, label="(awaiting_reviewer) In Review & Last update by Reviewer" ]
+  "needs_merger" [shape=box, color="blue", penwidth=2, label="(needs_merger) Needs privileged reviewer"]
+  "awaiting_merger" [shape=box, label="(awaiting_merger) In Review & Privileged Reviewer Assigned"]
+  "merged" [shape=circle, label="merged" ]
+
+  "needs_reviewer" -> "awaiting_changes" [label="Review requested", color="green"]
+  "awaiting_changes" -> "awaiting_reviewer" [label="Non-author comment"]
+  "needs_reviewer" -> "awaiting_reviewer" [label="Non-author comment"]
+  "awaiting_changes" -> "needs_merger" [label="Reviewer would merge", color="orange"]
+  "needs_merger" -> "awaiting_reviewer" [label="Comment  "]
+  "awaiting_merger" -> "awaiting_reviewer" [label="Comment"]
+  "awaiting_merger" -> "merged" [label="Merges"]
+  "awaiting_reviewer" -> "awaiting_changes" [label="Commit or author comment  "]
+  "unlabeled" -> "needs_reviewer" [label="Marked as ready"]
+  "awaiting_changes" -> "needs_reviewer" [label="Timeout", color="green"]
+  "awaiting_merger" -> "needs_merger" [label="Timeout", color="green"]
+  "needs_merger" -> "awaiting_merger" [label="Review requested", color="green"]
+}
