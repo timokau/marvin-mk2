@@ -40,24 +40,20 @@ async def issue_comment_event(
     if len(command_router.find_commands(event.data["comment"]["body"])) > 0:
         return
 
-    by_pr_author = (
-        event.data["issue"]["user"]["id"] == event.data["comment"]["user"]["id"]
-    )
+    # issue on issue_comment event, pull_request on pull_request_review_comment event
+    issue = event.data["issue"] if "issue" in event.data else event.data["pull_request"]
+    by_pr_author = issue["user"]["id"] == event.data["comment"]["user"]["id"]
     if by_pr_author:
-        label_names = {label["name"] for label in event.data["issue"]["labels"]}
+        label_names = {label["name"] for label in issue["labels"]}
         if "awaiting_changes" in label_names:
             # A new comment by the author is probably some justification or request
             # for clarification. Action of the reviewer is needed.
-            await gh_util.set_issue_status(
-                event.data["issue"], "awaiting_reviewer", gh, token
-            )
+            await gh_util.set_issue_status(issue, "awaiting_reviewer", gh, token)
     else:
         # A new comment by somebody else is likely a review asking for
         # clarification or changes (provided it doesn't explicitly contain a
         # status command).
-        await gh_util.set_issue_status(
-            event.data["issue"], "awaiting_changes", gh, token
-        )
+        await gh_util.set_issue_status(issue, "awaiting_changes", gh, token)
 
 
 @router.register("pull_request_review", action="submitted")
