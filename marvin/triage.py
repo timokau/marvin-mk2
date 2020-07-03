@@ -24,6 +24,8 @@ async def timeout_awaiting_reviewer(
         token,
         query_parameters=[
             f"repo:{repository_name}",
+            "is:open",
+            "is:pr",
             "label:awaiting_reviewer",
             "label:marvin",
             "sort:updated-asc",  # stale first
@@ -50,6 +52,8 @@ async def timeout_awaiting_merger(
         token,
         query_parameters=[
             f"repo:{repository_name}",
+            "is:open",
+            "is:pr",
             "label:awaiting_merger",
             "label:marvin",
             "sort:updated-asc",  # stale first
@@ -72,6 +76,8 @@ async def assign_mergers(gh: GitHubAPI, token: str, repository_name: str) -> Non
         token,
         query_parameters=[
             f"repo:{repository_name}",
+            "is:open",
+            "is:pr",
             "label:needs_merger",
             "label:marvin",
             "sort:created-asc",  # oldest first
@@ -98,6 +104,8 @@ async def assign_reviewers(gh: GitHubAPI, token: str, repository_name: str) -> N
         token,
         query_parameters=[
             f"repo:{repository_name}",
+            "is:open",
+            "is:pr",
             "label:needs_reviewer",
             "label:marvin",
             "sort:created-asc",  # oldest first
