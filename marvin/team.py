@@ -54,7 +54,7 @@ def active_prs_below_limit(
             token,
             query_parameters=[
                 "repo:NixOS/nixpkgs",
-                "involves:timokau",
+                f"involves:{user}",
                 f"updated:>={timeframe_start}",
                 f"-merged:<{timeframe_start}",
             ],
