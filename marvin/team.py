@@ -88,7 +88,7 @@ TEAM = {
     ),
     Member(
         gh_name="timokau",
-        request_allowed=active_prs_below_limit("timokau", days=1, limit=3),
+        request_allowed=active_prs_below_limit("timokau", days=1, limit=1),
     ),
 }
 
