@@ -6,6 +6,7 @@ from gidgethub import sansio
 from gidgethub.aiohttp import GitHubAPI
 
 from marvin import gh_util
+from marvin import triage_runner
 from marvin.command_router import CommandRouter
 
 router = routing.Router()
@@ -73,9 +74,10 @@ async def pull_request_review_submitted_event(
 
 @command_router.register_command("/status needs_reviewer")
 async def needs_reviewer_command(
-    gh: GitHubAPI, token: str, issue: Dict[str, Any], **kwargs: Any
+    gh: GitHubAPI, event: sansio.Event, token: str, issue: Dict[str, Any], **kwargs: Any
 ) -> None:
     await gh_util.set_issue_status(issue, "needs_reviewer", gh, token)
+    triage_runner.runners[event.data["installation"]["id"]].run_soon(gh, token)
 
 
 @command_router.register_command("/status awaiting_changes")
@@ -96,6 +98,7 @@ async def awaiting_reviewer_command(
 async def needs_merger_command(
     gh: GitHubAPI,
     token: str,
+    event: sansio.Event,
     issue: Dict[str, Any],
     pull_request_url: str,
     comment: Dict[str, Any],
@@ -110,6 +113,7 @@ async def needs_merger_command(
         )
     else:
         await gh_util.set_issue_status(issue, "needs_merger", gh, token)
+        triage_runner.runners[event.data["installation"]["id"]].run_soon(gh, token)
 
 
 @command_router.register_command("/status awaiting_merger")

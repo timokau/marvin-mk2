@@ -10,12 +10,12 @@ from gidgethub import sansio
 from gidgethub.aiohttp import GitHubAPI
 
 from marvin import commands
+from marvin import constants
 from marvin import status
+from marvin import triage_runner
 
 router = routing.Router(commands.router, status.router)
 routes = web.RouteTableDef()
-
-BOT_NAME = os.environ.get("BOT_NAME", "marvin-mk2")
 
 
 def is_bot_comment(event: sansio.Event) -> bool:
@@ -24,7 +24,7 @@ def is_bot_comment(event: sansio.Event) -> bool:
         return False
     comment = event.data["comment"]
     comment_author_login = comment["user"]["login"]
-    return comment_author_login in [BOT_NAME, BOT_NAME + "[bot]"]
+    return comment_author_login in [constants.BOT_NAME, constants.BOT_NAME + "[bot]"]
 
 
 def is_opted_in(event: sansio.Event) -> bool:
@@ -66,7 +66,7 @@ async def process_webhook(request: web.Request) -> web.Response:
         )
 
         async with aiohttp.ClientSession() as session:
-            gh = GitHubAPI(session, BOT_NAME)
+            gh = GitHubAPI(session, constants.BOT_NAME)
 
             # Fetch the installation_access_token once for each webhook delivery.
             # The token is valid for an hour, so it could be cached if we need to
@@ -78,6 +78,20 @@ async def process_webhook(request: web.Request) -> web.Response:
                 app_id=request.app["gh_app_id"],
                 private_key=request.app["gh_private_key"],
             )
+            # Make sure a triage runner exists for this installation. Triage
+            # runners are only started once at least one webhook event was
+            # received. That's not ideal, but getting access to the list of
+            # installations would otherwise be a pain.
+            if installation_id not in triage_runner.runners:
+                triage_runner.runners[installation_id] = triage_runner.TriageRunner(
+                    installation_id,
+                    gh_app_id=request.app["gh_app_id"],
+                    gh_private_key=request.app["gh_private_key"],
+                    min_delay_seconds=60,
+                    max_delay_seconds=60 * 60 * 24,
+                )
+                print(f"Starting a triage runner for installation {installation_id}")
+                triage_runner.runners[installation_id].start()
 
             if is_opted_in(event) and not is_bot_comment(event):
                 # call the appropriate callback for the event

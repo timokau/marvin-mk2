@@ -21,6 +21,7 @@ Hi! I'm an experimental bot. My goal is to guide this PR through its stages, hop
 
 
 async def handle_comment(
+    event: sansio.Event,
     comment: Dict[str, Any],
     issue: Dict[str, Any],
     pull_request_url: str,
@@ -49,6 +50,7 @@ async def handle_comment(
         await command_router.command_handlers[command](
             gh=gh,
             token=token,
+            event=event,
             issue=issue,
             pull_request_url=pull_request_url,
             comment=comment,
@@ -67,6 +69,7 @@ async def issue_comment_event(
     # requests.
     if "pull_request" in event.data["issue"]:
         await handle_comment(
+            event,
             event.data["comment"],
             event.data["issue"],
             event.data["issue"]["pull_request"]["url"],
@@ -80,6 +83,7 @@ async def pull_request_review_comment_event(
     event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
     await handle_comment(
+        event,
         event.data["comment"],
         event.data["pull_request"],
         event.data["pull_request"]["url"],
@@ -93,6 +97,7 @@ async def pull_request_review_submitted_event(
     event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
     await handle_comment(
+        event,
         event.data["review"],
         event.data["pull_request"],
         event.data["pull_request"]["url"],
