@@ -21,10 +21,13 @@ Sorry, you cannot set your own PR to `needs_merger` or `awaiting_merger`. Please
 async def pull_request_synchronize(
     event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
-    # Synchronize means that the PRs branch moved, invalidating previous reviews.
-    if "needs_merger" in {
-        label["name"] for label in event.data["pull_request"]["labels"]
-    }:
+    # Synchronize means that the PRs branch moved
+    labels = {label["name"] for label in event.data["pull_request"]["labels"]}
+    if (
+        "needs_merger" in labels
+        or "awaiting_changes" in labels
+        or "awaiting_merger" in labels
+    ):
         await gh_util.set_issue_status(
             event.data["pull_request"], "awaiting_reviewer", gh, token
         )
