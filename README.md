@@ -1,6 +1,6 @@
 # Marvin MK2
 
-This is a helpful bot that keeps PRs on nixpkgs flowing. See [Usage.md](Usage.md) for a usage-focused introduction.
+This is a helpful bot that keeps PRs on nixpkgs flowing. See [USAGE.md](USAGE.md) for a usage-focused introduction.
 
 ## Testing
 
