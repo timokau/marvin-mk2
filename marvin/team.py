@@ -108,6 +108,11 @@ async def get_reviewer(
     candidates = TEAM
     if merge_permission_needed:
         candidates = {member for member in candidates if member.can_merge}
+    else:
+        # For now people should sign up with two different "Memeber" listings
+        # if they want to review both kinds of PRs. This allows for different
+        # rate limits.
+        candidates = {member for member in candidates if not member.can_merge}
 
     print(
         f"Selecting reviewer from candidates: {[candidate.gh_name for candidate in candidates]}"
