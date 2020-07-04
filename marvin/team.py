@@ -94,6 +94,9 @@ TEAM = {
         gh_name="ryantm",
         request_allowed=active_prs_below_limit("ryantm", days=1, limit=1),
     ),
+    Member(
+        gh_name="fgaz", request_allowed=active_prs_below_limit("fgaz", days=5, limit=7),
+    ),
 }
 
 
