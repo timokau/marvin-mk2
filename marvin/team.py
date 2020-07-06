@@ -105,6 +105,10 @@ TEAM = {
         gh_name="turion",
         request_allowed=active_prs_below_limit("turion", days=7, limit=3),
     ),
+    Member(
+        gh_name="symphorien",
+        request_allowed=active_prs_below_limit("symphorien", days=7, limit=3),
+    ),
 }
 
 
