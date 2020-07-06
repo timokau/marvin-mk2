@@ -97,6 +97,10 @@ TEAM = {
     Member(
         gh_name="fgaz", request_allowed=active_prs_below_limit("fgaz", days=5, limit=7),
     ),
+    Member(
+        gh_name="glittershark",
+        request_allowed=active_prs_below_limit("glittershark", days=7, limit=2),
+    ),
 }
 
 
