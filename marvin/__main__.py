@@ -97,7 +97,7 @@ async def process_webhook(request: web.Request) -> web.Response:
                 if "issue" in event.data:
                     print(f"New event on #{event.data['issue']['number']}")
                 elif "pull_request" in event.data:
-                    print(f"New event on #{event.data['issue']['number']}")
+                    print(f"New event on #{event.data['pull_request']['number']}")
                 else:
                     print(
                         f"New event that couldn't be assigned to an issue or PR: {event}"
