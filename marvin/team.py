@@ -59,6 +59,7 @@ def active_prs_below_limit(
                 f"-merged:<{timeframe_start}",
             ],
         )
+        print(f"Active in {num_results} PRs, limit is {limit}.")
         return num_results < limit
 
     return decision_function
