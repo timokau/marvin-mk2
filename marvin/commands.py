@@ -96,11 +96,13 @@ async def pull_request_review_comment_event(
 async def pull_request_review_submitted_event(
     event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
-    await handle_comment(
-        event,
-        event.data["review"],
-        event.data["pull_request"],
-        event.data["pull_request"]["url"],
-        gh,
-        token,
-    )
+    # Pull request reviews may or may not have a comment.
+    if event.data["review"]["body"] is not None:
+        await handle_comment(
+            event,
+            event.data["review"],
+            event.data["pull_request"],
+            event.data["pull_request"]["url"],
+            gh,
+            token,
+        )

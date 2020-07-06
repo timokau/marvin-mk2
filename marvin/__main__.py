@@ -94,6 +94,14 @@ async def process_webhook(request: web.Request) -> web.Response:
                 triage_runner.runners[installation_id].start()
 
             if is_opted_in(event) and not is_bot_comment(event):
+                if "issue" in event.data:
+                    print(f"New event on #{event.data['issue']['number']}")
+                elif "pull_request" in event.data:
+                    print(f"New event on #{event.data['issue']['number']}")
+                else:
+                    print(
+                        f"New event that couldn't be assigned to an issue or PR: {event}"
+                    )
                 # call the appropriate callback for the event
                 await router.dispatch(event, gh, installation_access_token["token"])
 
