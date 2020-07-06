@@ -133,3 +133,26 @@ async def test_does_not_modify_needs_merge_on_author_comment() -> None:
     await main.router.dispatch(event, gh, token="fake-token")
     assert gh.post_data == []
     assert gh.delete_urls == []
+
+
+async def test_does_not_crash_on_empty_pull_request_summary() -> None:
+    data = {
+        "action": "submitted",
+        "pull_request": {
+            "url": "pr-url",
+            "user": {"id": 42, "login": "somebody"},
+            "labels": [{"name": "marvin"}, {"name": "needs_merger"}],
+        },
+        "review": {
+            "body": None,
+            "state": "changes_requested",
+            "user": {"id": 42, "login": "somebody"},
+        },
+    }
+    event = sansio.Event(data, event="pull_request_review", delivery_id="1")
+    gh = GitHubAPIMock()
+    await main.router.dispatch(event, gh, token="fake-token")
+    assert gh.post_data == [("pr-url/labels", {"labels": ["awaiting_changes"]})]
+    assert set(gh.delete_urls) == {
+        "pr-url/labels/needs_merger",
+    }

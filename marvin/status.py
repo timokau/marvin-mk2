@@ -63,7 +63,10 @@ async def issue_comment_event(
 async def pull_request_review_submitted_event(
     event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
-    if len(command_router.find_commands(event.data["review"]["body"])) > 0:
+    if (
+        event.data["review"]["body"] is not None
+        and len(command_router.find_commands(event.data["review"]["body"])) > 0
+    ):
         return
     if event.data["review"]["state"] == "changes_requested":
         await gh_util.set_issue_status(
