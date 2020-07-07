@@ -56,11 +56,6 @@ async def issue_comment_event(
             # A new comment by the author is probably some justification or request
             # for clarification. Action of the reviewer is needed.
             await gh_util.set_issue_status(issue, "awaiting_reviewer", gh, token)
-    else:
-        # A new comment by somebody else is likely a review asking for
-        # clarification or changes (provided it doesn't explicitly contain a
-        # status command).
-        await gh_util.set_issue_status(issue, "awaiting_changes", gh, token)
 
 
 @router.register("pull_request_review", action="submitted")
