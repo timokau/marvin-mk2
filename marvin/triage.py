@@ -89,8 +89,8 @@ async def assign_mergers(gh: GitHubAPI, token: str, repository_name: str) -> Non
         )
         if reviewer is not None:
             print(f"Requesting review (merge) from {reviewer} for #{issue['number']}.")
-            await gh_util.request_review(
-                issue["pull_request"]["url"], reviewer, gh, token
+            await gh_util.request_review_fallback(
+                gh, token, issue["pull_request"]["url"], issue["comments_url"], reviewer
             )
             await set_issue_status(issue, "awaiting_merger", gh, token)
         else:

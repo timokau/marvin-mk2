@@ -6,6 +6,7 @@ from gidgethub import routing
 from gidgethub import sansio
 from gidgethub.aiohttp import GitHubAPI
 
+from marvin import gh_util
 from marvin import status
 from marvin import triage
 from marvin.command_router import CommandRouter
@@ -40,9 +41,7 @@ async def handle_comment(
             await gh.post(
                 issue_url + "/labels", data={"labels": ["marvin"]}, oauth_token=token,
             )
-            await gh.post(
-                issue["comments_url"], data={"body": GREETING}, oauth_token=token,
-            )
+            gh_util.post_comment(gh, token, issue["comments_url"], GREETING)
         else:
             return
 
