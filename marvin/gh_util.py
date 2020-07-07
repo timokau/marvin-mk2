@@ -23,6 +23,13 @@ async def request_review(
     await gh.post(url, data={"reviewers": [gh_login]}, oauth_token=token)
 
 
+async def post_comment(gh: GitHubAPI, token: str, comments_url: str, body: str) -> None:
+    """Post a new comment."""
+    await gh.post(
+        comments_url, data={"body": body}, oauth_token=token,
+    )
+
+
 async def num_search_results(
     gh: GitHubAPI, token: str, query_parameters: List[str],
 ) -> int:
