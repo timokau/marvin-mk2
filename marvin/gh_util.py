@@ -40,10 +40,10 @@ async def request_review_fallback(
     allow us to do that (since the user is not a collaborator on the repo).
     """
     try:
-        request_review(pull_url, gh_login, gh, token)
+        await request_review(pull_url, gh_login, gh, token)
     except gidgethub.InvalidField:
         print("Falling back to @mention.")
-        post_comment(gh, token, comments_url, f"@{gh_login} please review.")
+        await post_comment(gh, token, comments_url, f"@{gh_login} please review.")
 
 
 async def num_search_results(
