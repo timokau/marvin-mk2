@@ -3,6 +3,7 @@ from typing import AsyncGenerator
 from typing import Dict
 from typing import List
 
+import gidgethub
 from gidgethub.aiohttp import GitHubAPI
 
 # List of mutually exclusive status labels
@@ -28,6 +29,21 @@ async def post_comment(gh: GitHubAPI, token: str, comments_url: str, body: str) 
     await gh.post(
         comments_url, data={"body": body}, oauth_token=token,
     )
+
+
+async def request_review_fallback(
+    gh: GitHubAPI, token: str, pull_url: str, comments_url: str, gh_login: str
+) -> None:
+    """Request a review on a pull request, falling back to a comment.
+
+    Attempts to request a review and @mentions the reviewer if GitHub doesn't
+    allow us to do that (since the user is not a collaborator on the repo).
+    """
+    try:
+        request_review(pull_url, gh_login, gh, token)
+    except gidgethub.InvalidField:
+        print("Falling back to @mention.")
+        post_comment(gh, token, comments_url, f"@{gh_login} please review.")
 
 
 async def num_search_results(
