@@ -1,11 +1,14 @@
 from datetime import datetime
 from datetime import timezone
 from typing import Any
+from typing import Dict
 
+from gidgethub import sansio
 from gidgethub.aiohttp import GitHubAPI
 
 from marvin import gh_util
 from marvin import team
+from marvin import triage_runner
 from marvin.command_router import CommandRouter
 from marvin.gh_util import set_issue_status
 
@@ -125,7 +128,6 @@ async def assign_reviewers(gh: GitHubAPI, token: str, repository_name: str) -> N
             print(f"No reviewer found for #{issue['number']}.")
 
 
-@command_router.register_command("/marvin triage")
 async def run_triage(gh: GitHubAPI, token: str, **kwargs: Any) -> None:
     repositories = await gh_util.get_installation_repositories(gh, token)
     for repository in repositories:
@@ -135,3 +137,10 @@ async def run_triage(gh: GitHubAPI, token: str, **kwargs: Any) -> None:
         await timeout_awaiting_merger(gh, token, repository_name)
         await assign_mergers(gh, token, repository_name)
         await assign_reviewers(gh, token, repository_name)
+
+
+@command_router.register_command("/marvin triage")
+async def triage_command(
+    gh: GitHubAPI, event: sansio.Event, token: str, issue: Dict[str, Any], **kwargs: Any
+) -> None:
+    triage_runner.runners[event.data["installation"]["id"]].run_soon(gh, token)
