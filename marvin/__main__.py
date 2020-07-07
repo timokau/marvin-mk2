@@ -59,7 +59,7 @@ def log_event(event: sansio.Event) -> None:
     number = (
         event.data["issue"]["number"]
         if "issue" in event.data
-        else event.data["pull_request"]
+        else event.data["pull_request"]["number"]
         if "pull_request" in event.data
         else None
     )
