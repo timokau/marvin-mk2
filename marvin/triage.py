@@ -120,8 +120,8 @@ async def assign_reviewers(gh: GitHubAPI, token: str, repository_name: str) -> N
         )
         if reviewer is not None:
             print(f"Requesting review from {reviewer} for #{issue['number']}.")
-            await gh_util.request_review(
-                issue["pull_request"]["url"], reviewer, gh, token
+            await gh_util.request_review_fallback(
+                gh, token, issue["pull_request"]["url"], issue["comments_url"], reviewer
             )
             await set_issue_status(issue, "awaiting_reviewer", gh, token)
         else:
