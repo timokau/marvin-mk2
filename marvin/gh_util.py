@@ -1,5 +1,7 @@
+import asyncio
 from typing import Any
 from typing import AsyncGenerator
+from typing import Callable
 from typing import Dict
 from typing import List
 
@@ -14,6 +16,23 @@ ISSUE_STATUS_LABELS = {
     "needs_merger",
     "awaiting_merger",
 }
+
+
+def rate_limit_rety(wait_seconds: int) -> Callable[[Callable], Callable]:
+    """Create a decorator that retries a request on rate limiting."""
+
+    def decorator(function: Callable) -> Callable:
+        async def wrapped(*args: Any, **kwargs: Any) -> Any:
+            try:
+                return await function(*args, **kwargs)
+            except gidgethub.RateLimitExceeded:
+                print(f"Rate limit exceeded. Retrying in {wait_seconds} seconds.")
+                await asyncio.sleep(wait_seconds)
+                return await wrapped(*args, **kwargs)
+
+        return wrapped
+
+    return decorator
 
 
 async def request_review(
@@ -46,6 +65,7 @@ async def request_review_fallback(
         await post_comment(gh, token, comments_url, f"@{gh_login} please review.")
 
 
+@rate_limit_rety(60)  # rate limited at 30/minute
 async def num_search_results(
     gh: GitHubAPI, token: str, query_parameters: List[str],
 ) -> int:
@@ -57,6 +77,7 @@ async def num_search_results(
     return result["total_count"]
 
 
+@rate_limit_rety(60)  # rate limited at 30/minute
 def search_issues(
     gh: GitHubAPI, token: str, query_parameters: List[str],
 ) -> AsyncGenerator[Dict[str, Any], None]:
