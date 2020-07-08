@@ -14,11 +14,9 @@ router = routing.Router()
 command_router = CommandRouter()
 
 NO_SELF_REVIEW_TEXT = f"""
-The PR author cannot set the status to `needs_merger`.
-Please wait for an external review.
-If you are not the PR author and you are reading this, please review the [usage](https://github.com/timokau/marvin-mk2/blob/deployed/USAGE.md) of this bot.
-You may be able to help.
-Please make an honest attempt to resolve all outstanding issues before setting to `needs_merger`.
+The PR author cannot set the status to `needs_merger`. Please wait for an external review.
+
+If you are not the PR author and you are reading this, please review the [usage](https://github.com/timokau/marvin-mk2/blob/deployed/USAGE.md) of this bot. You may be able to help. Please make an honest attempt to resolve all outstanding issues before setting to `needs_merger`.
 """.strip()
 
 
