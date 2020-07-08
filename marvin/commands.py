@@ -41,7 +41,7 @@ async def handle_comment(
             await gh.post(
                 issue_url + "/labels", data={"labels": ["marvin"]}, oauth_token=token,
             )
-            gh_util.post_comment(gh, token, issue["comments_url"], GREETING)
+            await gh_util.post_comment(gh, token, issue["comments_url"], GREETING)
         else:
             return
 
