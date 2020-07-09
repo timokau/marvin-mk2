@@ -12,8 +12,7 @@ $ nix-build pre-commit.nix
 
 
 ## Related RFCs
-Marvin is basically a trial run of rfc 30.
-- https://github.com/NixOS/rfcs/pull/30/
+Marvin is basically a trial run of [rfc 30](https://github.com/NixOS/rfcs/pull/30/).
 
 Further readings: 
 - https://github.com/NixOS/rfcs/blob/master/rfcs/0039-unprivileged-maintainer-teams.md
