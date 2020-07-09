@@ -17,4 +17,3 @@ Marvin is basically a trial run of [rfc 30](https://github.com/NixOS/rfcs/pull/3
 Further readings: 
 - https://github.com/NixOS/rfcs/blob/master/rfcs/0039-unprivileged-maintainer-teams.md
 - https://github.com/NixOS/rfcs/blob/master/rfcs/0051-mark-stale-issues.md
-- https://github.com/NixOS/rfcs/blob/master/rfcs/0055-retired-committers.md
