@@ -1,4 +1,3 @@
-import asyncio
 from typing import Any
 from typing import Dict
 
@@ -77,10 +76,6 @@ async def needs_reviewer_command(
     gh: GitHubAPI, event: sansio.Event, token: str, issue: Dict[str, Any], **kwargs: Any
 ) -> None:
     await gh_util.set_issue_status(issue, "needs_reviewer", gh, token)
-    # Give GitHub some time to reach internal consistency to make sure the
-    # newly labeled PR turns up in the triage search. Without this sleep and ~2
-    # seconds between setting the label and running the triage this failed.
-    await asyncio.sleep(5)
     triage_runner.runners[event.data["installation"]["id"]].run_soon(gh, token)
 
 
@@ -117,8 +112,6 @@ async def needs_merger_command(
         )
     else:
         await gh_util.set_issue_status(issue, "needs_merger", gh, token)
-        # Give GitHub some time to reach consistency. See comment above.
-        await asyncio.sleep(5)
         triage_runner.runners[event.data["installation"]["id"]].run_soon(gh, token)
 
 

@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from datetime import timezone
 from typing import Any
@@ -133,8 +134,13 @@ async def run_triage(gh: GitHubAPI, token: str, **kwargs: Any) -> None:
     for repository in repositories:
         repository_name = repository["full_name"]
         print(f"Running triage on {repository_name}")
+        # Give GitHub some time to reach internal consistency to make sure the
+        # newly labeled PR turns up in the triage search. Without this sleep and ~2
+        # seconds between setting the label and running the triage this failed.
+        await asyncio.sleep(2)
         await timeout_awaiting_reviewer(gh, token, repository_name)
         await timeout_awaiting_merger(gh, token, repository_name)
+        await asyncio.sleep(2)
         await assign_mergers(gh, token, repository_name)
         await assign_reviewers(gh, token, repository_name)
 
