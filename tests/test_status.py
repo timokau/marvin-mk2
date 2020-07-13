@@ -133,3 +133,85 @@ async def test_does_not_crash_on_empty_pull_request_summary() -> None:
     assert set(gh.delete_urls) == {
         "pr-url/labels/needs_merger",
     }
+
+
+async def test_sets_to_awaiting_reviewer_on_comment() -> None:
+    data = {
+        "action": "created",
+        "issue": {
+            "url": "issue-url",
+            "pull_request": {"url": "pr-url"},
+            "user": {"id": 42, "login": "author"},
+            "labels": [{"name": "marvin"}, {"name": "needs_reviewer"}],
+        },
+        "comment": {
+            "body": "The body is irrelevant.",
+            "user": {"id": 43, "login": "non-author"},
+        },
+    }
+    event = sansio.Event(data, event="issue_comment", delivery_id="1")
+    gh = GitHubAPIMock()
+    await main.router.dispatch(event, gh, token="fake-token")
+    assert gh.post_data == [("issue-url/labels", {"labels": ["awaiting_reviewer"]})]
+    assert set(gh.delete_urls) == {
+        "issue-url/labels/needs_reviewer",
+    }
+
+
+async def test_sets_to_awaiting_reviewer_on_assigned() -> None:
+    data = {
+        "action": "assigned",
+        "pull_request": {
+            "url": "pr-url",
+            "user": {"id": 42, "login": "author"},
+            "labels": [{"name": "marvin"}, {"name": "needs_reviewer"}],
+        },
+    }
+    event = sansio.Event(data, event="pull_request", delivery_id="1")
+    gh = GitHubAPIMock()
+    await main.router.dispatch(event, gh, token="fake-token")
+    assert gh.post_data == [("pr-url/labels", {"labels": ["awaiting_reviewer"]})]
+    assert set(gh.delete_urls) == {
+        "pr-url/labels/needs_reviewer",
+    }
+
+
+async def test_sets_to_awaiting_reviewer_on_review_requested() -> None:
+    data = {
+        "action": "review_requested",
+        "pull_request": {
+            "url": "pr-url",
+            "user": {"id": 42, "login": "author"},
+            "labels": [{"name": "marvin"}, {"name": "needs_reviewer"}],
+        },
+    }
+    event = sansio.Event(data, event="pull_request", delivery_id="1")
+    gh = GitHubAPIMock()
+    await main.router.dispatch(event, gh, token="fake-token")
+    assert gh.post_data == [("pr-url/labels", {"labels": ["awaiting_reviewer"]})]
+    assert set(gh.delete_urls) == {
+        "pr-url/labels/needs_reviewer",
+    }
+
+
+async def test_sets_to_awaiting_reviewer_on_review_submitted() -> None:
+    data = {
+        "action": "submitted",
+        "pull_request": {
+            "url": "pr-url",
+            "user": {"id": 42, "login": "author"},
+            "labels": [{"name": "marvin"}, {"name": "needs_reviewer"}],
+        },
+        "review": {
+            "body": None,
+            "state": "comment",
+            "user": {"id": 43, "login": "non-author"},
+        },
+    }
+    event = sansio.Event(data, event="pull_request_review", delivery_id="1")
+    gh = GitHubAPIMock()
+    await main.router.dispatch(event, gh, token="fake-token")
+    assert gh.post_data == [("pr-url/labels", {"labels": ["awaiting_reviewer"]})]
+    assert set(gh.delete_urls) == {
+        "pr-url/labels/needs_reviewer",
+    }

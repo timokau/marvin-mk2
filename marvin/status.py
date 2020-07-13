@@ -35,6 +35,18 @@ async def pull_request_synchronize(
         )
 
 
+@router.register("pull_request", action="assigned")
+@router.register("pull_request", action="review_requested")
+async def pull_request_assigned(
+    event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
+) -> None:
+    labels = {label["name"] for label in event.data["pull_request"]["labels"]}
+    if "needs_reviewer" in labels:
+        await gh_util.set_issue_status(
+            event.data["pull_request"], "awaiting_reviewer", gh, token
+        )
+
+
 @router.register("pull_request_review_comment", action="created")
 @router.register("issue_comment", action="created")
 async def issue_comment_event(
@@ -48,16 +60,18 @@ async def issue_comment_event(
     # issue on issue_comment event, pull_request on pull_request_review_comment event
     issue = event.data["issue"] if "issue" in event.data else event.data["pull_request"]
     by_pr_author = issue["user"]["id"] == event.data["comment"]["user"]["id"]
-    if by_pr_author:
-        label_names = {label["name"] for label in issue["labels"]}
-        if "awaiting_changes" in label_names:
-            # A new comment by the author is probably some justification or request
-            # for clarification. Action of the reviewer is needed.
-            await gh_util.set_issue_status(issue, "awaiting_reviewer", gh, token)
+    labels = {label["name"] for label in issue["labels"]}
+    if by_pr_author and "awaiting_changes" in labels:
+        # A new comment by the author is probably some justification or request
+        # for clarification. Action of the reviewer is needed.
+        await gh_util.set_issue_status(issue, "awaiting_reviewer", gh, token)
+    elif not by_pr_author and "needs_reviewer" in labels:
+        # A new comment indicates that someone is reviewing this PR.
+        await gh_util.set_issue_status(issue, "awaiting_reviewer", gh, token)
 
 
 @router.register("pull_request_review", action="submitted")
-async def pull_request_review_submitted_event(
+async def pull_request_review_submitted(
     event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
 ) -> None:
     if (
@@ -65,9 +79,15 @@ async def pull_request_review_submitted_event(
         and len(command_router.find_commands(event.data["review"]["body"])) > 0
     ):
         return
+
+    labels = {label["name"] for label in event.data["pull_request"]["labels"]}
     if event.data["review"]["state"] == "changes_requested":
         await gh_util.set_issue_status(
             event.data["pull_request"], "awaiting_changes", gh, token
+        )
+    elif "needs_reviewer" in labels:
+        await gh_util.set_issue_status(
+            event.data["pull_request"], "awaiting_reviewer", gh, token
         )
 
 
