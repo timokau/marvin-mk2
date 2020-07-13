@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 import traceback
@@ -130,6 +131,8 @@ def load_secret_from_env_or_file(key: str, file_key: str) -> str:
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.DEBUG)
+
     app = web.Application()
     app["webhook_secret"] = load_secret_from_env_or_file(
         "WEBHOOK_SECRET", "WEBHOOK_SECRET_FILE"
