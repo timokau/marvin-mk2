@@ -100,7 +100,7 @@ async def process_webhook(request: web.Request) -> web.Response:
                     gh_app_id=request.app["gh_app_id"],
                     gh_private_key=request.app["gh_private_key"],
                     min_delay_seconds=60,
-                    max_delay_seconds=60 * 60 * 24,
+                    max_delay_seconds=60 * 60 * 6,
                 )
                 print(f"Starting a triage runner for installation {installation_id}")
                 triage_runner.runners[installation_id].start()
