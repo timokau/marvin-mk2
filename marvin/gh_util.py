@@ -77,7 +77,6 @@ async def num_search_results(
     return result["total_count"]
 
 
-@rate_limit_retry(60)  # rate limited at 30/minute
 def search_issues(
     gh: GitHubAPI, token: str, query_parameters: List[str],
 ) -> AsyncGenerator[Dict[str, Any], None]:
