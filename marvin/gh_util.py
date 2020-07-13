@@ -18,7 +18,7 @@ ISSUE_STATUS_LABELS = {
 }
 
 
-def rate_limit_rety(wait_seconds: int) -> Callable[[Callable], Callable]:
+def rate_limit_retry(wait_seconds: int) -> Callable[[Callable], Callable]:
     """Create a decorator that retries a request on rate limiting."""
 
     def decorator(function: Callable) -> Callable:
@@ -65,7 +65,7 @@ async def request_review_fallback(
         await post_comment(gh, token, comments_url, f"@{gh_login} please review.")
 
 
-@rate_limit_rety(60)  # rate limited at 30/minute
+@rate_limit_retry(60)  # rate limited at 30/minute
 async def num_search_results(
     gh: GitHubAPI, token: str, query_parameters: List[str],
 ) -> int:
@@ -77,7 +77,7 @@ async def num_search_results(
     return result["total_count"]
 
 
-@rate_limit_rety(60)  # rate limited at 30/minute
+@rate_limit_retry(60)  # rate limited at 30/minute
 def search_issues(
     gh: GitHubAPI, token: str, query_parameters: List[str],
 ) -> AsyncGenerator[Dict[str, Any], None]:
