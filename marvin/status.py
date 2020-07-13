@@ -19,6 +19,22 @@ If you are not the PR author and you are reading this, please review the [usage]
 """.strip()
 
 
+# Unfortunately the opposite event does not currently exist:
+# https://github.community/t/no-webhook-event-for-convert-to-draft/14857
+@router.register("pull_request", action="ready_for_review")
+async def pull_request_ready_for_review(
+    event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
+) -> None:
+    issue = event.data["pull_request"]
+    labels = {label["name"] for label in issue["labels"]}
+    if (
+        "needs_merger" not in labels
+        and "awaiting_reviewer" not in labels
+        and "awaiting_merger" not in labels
+    ):
+        await gh_util.set_issue_status(issue, "needs_reviewer", gh, token)
+
+
 @router.register("pull_request", action="synchronize")
 async def pull_request_synchronize(
     event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any

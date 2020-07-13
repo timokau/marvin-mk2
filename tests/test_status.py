@@ -215,3 +215,26 @@ async def test_sets_to_awaiting_reviewer_on_review_submitted() -> None:
     assert set(gh.delete_urls) == {
         "pr-url/labels/needs_reviewer",
     }
+
+
+async def test_sets_to_needs_reviewer_when_marked_as_ready() -> None:
+    data = {
+        "action": "ready_for_review",
+        "pull_request": {
+            "url": "pr-url",
+            "user": {"id": 42, "login": "somebody"},
+            "labels": [{"name": "marvin"}, {"name": "awaiting_changes"}],
+        },
+        "review": {
+            "body": None,
+            "state": "changes_requested",
+            "user": {"id": 42, "login": "somebody"},
+        },
+    }
+    event = sansio.Event(data, event="pull_request", delivery_id="1")
+    gh = GitHubAPIMock()
+    await main.router.dispatch(event, gh, token="fake-token")
+    assert gh.post_data == [("pr-url/labels", {"labels": ["needs_reviewer"]})]
+    assert set(gh.delete_urls) == {
+        "pr-url/labels/awaiting_changes",
+    }
