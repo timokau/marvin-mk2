@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
@@ -45,6 +46,10 @@ class ActivityLimitedReviewer(Reviewer):
             )
             return False
 
+        # GitHub rate limits us to 30 searches per minute. This prevents us
+        # from exceeding that limit. Not pretty but it works for now. Shouldn't
+        # slow the reviewer search down too much due to caching.
+        await asyncio.sleep(3)
         timeframe_start = (
             datetime.now(timezone.utc) - timedelta(days=self.days)
         ).strftime("%Y-%m-%dT%H:%M:%S+00:00")
