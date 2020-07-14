@@ -1,5 +1,6 @@
-from datetime import date
+from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 import random
 from typing import Any
 from typing import Awaitable
@@ -38,9 +39,9 @@ class ActivityLimitedReviewer(Reviewer):
         for new reviews when your current open-source work "plate" is not yet full.
         """
         # days-1 since today is automatically counted
-        timeframe_start = (date.today() - timedelta(days=self.days - 1)).strftime(
-            "%Y-%m-%d"
-        )
+        timeframe_start = (
+            datetime.now(timezone.utc) - timedelta(days=self.days)
+        ).strftime("%Y-%m-%dT%H:%M:%S+00:00")
         num_results = await gh_util.num_search_results(
             gh,
             token,
