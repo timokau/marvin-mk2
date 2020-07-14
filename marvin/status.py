@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any
 from typing import Dict
 
@@ -112,6 +113,7 @@ async def needs_reviewer_command(
     gh: GitHubAPI, event: sansio.Event, token: str, issue: Dict[str, Any], **kwargs: Any
 ) -> None:
     await gh_util.set_issue_status(issue, "needs_reviewer", gh, token)
+    await asyncio.sleep(2)  # Make sure the new label has "set".
     triage_runner.runners[event.data["installation"]["id"]].run_soon(gh, token)
 
 
