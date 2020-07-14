@@ -1,5 +1,7 @@
-from datetime import date
+import asyncio
+from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 import random
 from typing import Any
 from typing import Awaitable
@@ -12,16 +14,71 @@ from gidgethub import aiohttp as gh_aiohttp
 from marvin import gh_util
 
 
-class Member:
+class Reviewer:
     def __init__(
-        self,
-        gh_name: str,
-        request_allowed: Callable[[gh_aiohttp.GitHubAPI, str], Awaitable[bool]],
-        can_merge: bool = False,
+        self, gh_name: str, can_merge: bool = False,
     ):
         self.gh_name = gh_name
-        self.request_allowed = request_allowed
         self.can_merge = can_merge
+
+    async def request_allowed(self, gh: gh_aiohttp.GitHubAPI, token: str) -> bool:
+        return True
+
+
+class ActivityLimitedReviewer(Reviewer):
+    def __init__(self, gh_name: str, days: int, limit: int, can_merge: bool = False):
+        super().__init__(gh_name, can_merge)
+        self.days = days
+        self.limit = limit
+        self.cached_no_until = datetime.now(timezone.utc)
+
+    async def request_allowed(self, gh: gh_aiohttp.GitHubAPI, token: str) -> bool:
+        """Determine whether a given active PR limit over a timeframe has already been reached.
+
+        This searches GitHub for recently active nixpkgs PRs the user is involved
+        in (ignoring any activity after the PR was merged) and compares the number
+        of results to a limit. This is useful when you want to only get a request
+        for new reviews when your current open-source work "plate" is not yet full.
+        """
+        if datetime.now(timezone.utc) < self.cached_no_until:
+            print(
+                f"Cached: Limit ({self.limit}/{self.days}d) exceeded until {self.cached_no_until}."
+            )
+            return False
+
+        # GitHub rate limits us to 30 searches per minute. This prevents us
+        # from exceeding that limit. Not pretty but it works for now. Shouldn't
+        # slow the reviewer search down too much due to caching.
+        await asyncio.sleep(3)
+        timeframe_start = (
+            datetime.now(timezone.utc) - timedelta(days=self.days)
+        ).strftime("%Y-%m-%dT%H:%M:%S+00:00")
+        search_results = gh_util.search_issues(
+            gh,
+            token,
+            query_parameters=[
+                "repo:NixOS/nixpkgs",
+                f"involves:{self.gh_name}",
+                f"updated:>={timeframe_start}",
+                f"-merged:<{timeframe_start}",
+            ],
+        )
+        cur_issue = 0
+        async for issue in search_results:
+            cur_issue += 1
+            if cur_issue == self.limit:
+                last_updated = datetime.strptime(
+                    issue["updated_at"], "%Y-%m-%dT%H:%M:%S%z"
+                )
+                # Remember when the PR that pushed us over the limit will "fall
+                # out" of the time window.
+                self.cached_no_until = last_updated + timedelta(days=self.days)
+                print(
+                    f"Limit ({self.limit}/{self.days}d) exceeded until {self.cached_no_until}."
+                )
+                return False
+
+        return True
 
 
 async def fetch_gist_content(gh: gh_aiohttp.GitHubAPI, gist_id: str) -> str:
@@ -33,36 +90,6 @@ async def fetch_gist_content(gh: gh_aiohttp.GitHubAPI, gist_id: str) -> str:
     # We only support one file per gist, just pick the first one
     gist_file = list(gist_response["files"].values())[0]
     return gist_file["content"]
-
-
-def active_prs_below_limit(
-    user: str, days: int, limit: int
-) -> Callable[[gh_aiohttp.GitHubAPI, str], Awaitable[bool]]:
-    """Determine whether a given active PR limit over a timeframe has already been reached.
-
-    This searches GitHub for recently active nixpkgs PRs the user is involved
-    in (ignoring any activity after the PR was merged) and compares the number
-    of results to a limit. This is useful when you want to only get a request
-    for new reviews when your current open-source work "plate" is not yet full.
-    """
-
-    async def decision_function(gh: gh_aiohttp.GitHubAPI, token: str) -> bool:
-        # days-1 since today is automatically counted
-        timeframe_start = (date.today() - timedelta(days=days - 1)).strftime("%Y-%m-%d")
-        num_results = await gh_util.num_search_results(
-            gh,
-            token,
-            query_parameters=[
-                "repo:NixOS/nixpkgs",
-                f"involves:{user}",
-                f"updated:>={timeframe_start}",
-                f"-merged:<{timeframe_start}",
-            ],
-        )
-        print(f"Active in {num_results} PRs, limit is {limit}.")
-        return num_results < limit
-
-    return decision_function
 
 
 def gist_controlled(
@@ -82,34 +109,18 @@ def gist_controlled(
 
 
 TEAM = {
-    Member(
+    ActivityLimitedReviewer(
         gh_name="timokau",
-        request_allowed=gist_controlled("5f50d3eab2a14b77dbdb65d2bb2df544"),
+        days=1,
+        limit=100,  # practically no limit on merge for now
         can_merge=True,
     ),
-    Member(
-        gh_name="timokau",
-        request_allowed=active_prs_below_limit("timokau", days=1, limit=1),
-    ),
-    Member(
-        gh_name="ryantm",
-        request_allowed=active_prs_below_limit("ryantm", days=1, limit=1),
-    ),
-    Member(
-        gh_name="fgaz", request_allowed=active_prs_below_limit("fgaz", days=5, limit=7),
-    ),
-    Member(
-        gh_name="glittershark",
-        request_allowed=active_prs_below_limit("glittershark", days=7, limit=2),
-    ),
-    Member(
-        gh_name="turion",
-        request_allowed=active_prs_below_limit("turion", days=7, limit=3),
-    ),
-    Member(
-        gh_name="symphorien",
-        request_allowed=active_prs_below_limit("symphorien", days=7, limit=3),
-    ),
+    ActivityLimitedReviewer(gh_name="timokau", days=1, limit=1),
+    ActivityLimitedReviewer(gh_name="ryantm", days=1, limit=1),
+    ActivityLimitedReviewer(gh_name="fgaz", days=5, limit=5),
+    ActivityLimitedReviewer(gh_name="glittershark", days=7, limit=2),
+    ActivityLimitedReviewer(gh_name="turion", days=7, limit=3),
+    ActivityLimitedReviewer(gh_name="symphorien", days=7, limit=3),
 }
 
 
