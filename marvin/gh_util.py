@@ -65,18 +65,6 @@ async def request_review_fallback(
         await post_comment(gh, token, comments_url, f"@{gh_login} please review.")
 
 
-@rate_limit_retry(60)  # rate limited at 30/minute
-async def num_search_results(
-    gh: GitHubAPI, token: str, query_parameters: List[str],
-) -> int:
-    """Search github issues and pull requests and return the number of results."""
-    query = "+".join(query_parameters)
-    result = await gh.getitem(
-        f"https://api.github.com/search/issues?q={query}", oauth_token=token
-    )
-    return result["total_count"]
-
-
 def search_issues(
     gh: GitHubAPI, token: str, query_parameters: List[str],
 ) -> AsyncGenerator[Dict[str, Any], None]:

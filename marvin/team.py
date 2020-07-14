@@ -29,6 +29,7 @@ class ActivityLimitedReviewer(Reviewer):
         super().__init__(gh_name, can_merge)
         self.days = days
         self.limit = limit
+        self.cached_no_until = datetime.now(timezone.utc)
 
     async def request_allowed(self, gh: gh_aiohttp.GitHubAPI, token: str) -> bool:
         """Determine whether a given active PR limit over a timeframe has already been reached.
@@ -38,11 +39,16 @@ class ActivityLimitedReviewer(Reviewer):
         of results to a limit. This is useful when you want to only get a request
         for new reviews when your current open-source work "plate" is not yet full.
         """
-        # days-1 since today is automatically counted
+        if datetime.now(timezone.utc) < self.cached_no_until:
+            print(
+                f"Cached: Limit ({self.limit}/{self.days}d) exceeded until {self.cached_no_until}."
+            )
+            return False
+
         timeframe_start = (
             datetime.now(timezone.utc) - timedelta(days=self.days)
         ).strftime("%Y-%m-%dT%H:%M:%S+00:00")
-        num_results = await gh_util.num_search_results(
+        search_results = gh_util.search_issues(
             gh,
             token,
             query_parameters=[
@@ -52,8 +58,22 @@ class ActivityLimitedReviewer(Reviewer):
                 f"-merged:<{timeframe_start}",
             ],
         )
-        print(f"Active in {num_results} PRs, limit is {self.limit}.")
-        return num_results < self.limit
+        cur_issue = 0
+        async for issue in search_results:
+            cur_issue += 1
+            if cur_issue == self.limit:
+                last_updated = datetime.strptime(
+                    issue["updated_at"], "%Y-%m-%dT%H:%M:%S%z"
+                )
+                # Remember when the PR that pushed us over the limit will "fall
+                # out" of the time window.
+                self.cached_no_until = last_updated + timedelta(days=self.days)
+                print(
+                    f"Limit ({self.limit}/{self.days}d) exceeded until {self.cached_no_until}."
+                )
+                return False
+
+        return True
 
 
 async def fetch_gist_content(gh: gh_aiohttp.GitHubAPI, gist_id: str) -> str:
