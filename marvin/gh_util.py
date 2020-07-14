@@ -4,6 +4,7 @@ from typing import AsyncGenerator
 from typing import Callable
 from typing import Dict
 from typing import List
+import urllib
 
 import gidgethub
 from gidgethub.aiohttp import GitHubAPI
@@ -76,7 +77,7 @@ def search_issues(
     A common query string is likely "repo:NixOS/nixpkgs". Returns an async
     iterator of issues, automatically handling pagination.
     """
-    query = "+".join(query_parameters)
+    query = "+".join([urllib.parse.quote(param, safe="") for param in query_parameters])
     return gh.getiter(
         f"https://api.github.com/search/issues?q={query}", oauth_token=token
     )
