@@ -1,4 +1,4 @@
-# Quickstart as a contributors
+# Quickstart as a contributor
 
 If you opened a pull request and want your pull request reviewed write the following two lines in a comment in the pull request:
 
