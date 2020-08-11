@@ -1,3 +1,14 @@
+# Quickstart as a contributors
+
+If you opened a pull request and want your pull request reviewed write the following two lines in a comment in the pull request:
+
+```
+/marvin opt-in
+/status needs_reviewer
+```
+
+For more information read the next section.
+
 # General Usage
 
 This bot allows everybody to change a PRs status with a simple comment of the form `/status <new_status_here>`. The right status of a PR depends on which group of people it is currently *actionable* to. The right status is
