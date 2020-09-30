@@ -117,7 +117,9 @@ async def set_issue_status(
     labels = issue["labels"]
     label_names = {label["name"] for label in labels}
     # should never be more than one, but better to make it a set anyway
-    status_labels = label_names.intersection(ISSUE_STATUS_LABELS)
+    status_labels = label_names.intersection(
+        ISSUE_STATUS_LABELS.union("timeout_pending",)
+    )
     for label in status_labels:
         if label == status:  # Don't touch the label we're supposed to set.
             continue
@@ -127,3 +129,21 @@ async def set_issue_status(
         await gh.post(
             issue_url + "/labels", data={"labels": [status]}, oauth_token=token,
         )
+
+
+async def mark_timeout(issue: Dict[str, Any], gh: GitHubAPI, token: str) -> None:
+    """Mark an issue as pending timeout."""
+    # depending on whether the issue is actually a pull request
+    issue_url = issue.get("issue_url", issue["url"])
+
+    await gh.post(
+        issue_url + "/labels", data={"labels": ["timeout_pending"]}, oauth_token=token,
+    )
+
+
+async def unmark_timeout(gh: GitHubAPI, token: str, issue: Dict[str, Any]) -> None:
+    """Mark an issue as no longer pending timeout."""
+    # depending on whether the issue is actually a pull request
+    issue_url = issue.get("issue_url", issue["url"])
+
+    await gh.delete(issue_url + "/labels/" + "timeout_pending", oauth_token=token)
