@@ -41,16 +41,22 @@ def is_opted_in(event: sansio.Event) -> bool:
     if "marvin" in {label["name"] for label in issue["labels"]}:
         return True
 
-    comment = event.data.get("comment")
-    if comment is None:
-        return False
-
     # We detect the opt-in command here to decide whether or not we should
     # route the event. We do not act on it here. This is some code duplication,
     # but better safe than sorry.
-    by_pr_author = issue["user"]["id"] == comment["user"]["id"]
-    if by_pr_author and "/marvin opt-in" in comment["body"]:
-        return True
+    comment = event.data.get("comment")
+    if comment is not None:
+        by_pr_author = issue["user"]["id"] == comment["user"]["id"]
+        if by_pr_author and "/marvin opt-in" in comment["body"]:
+            return True
+    else:
+        pull_request = event.data.get("pull_request")
+        if (
+            pull_request is not None
+            and event.data["action"] == "opened"
+            and "/marvin opt-in" in pull_request["body"]
+        ):
+            return True
 
     return False
 

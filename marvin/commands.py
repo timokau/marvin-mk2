@@ -59,6 +59,20 @@ async def handle_comment(
         return
 
 
+@router.register("pull_request", action="opened")
+async def pull_request_opened_event(
+    event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
+) -> None:
+    await handle_comment(
+        event,
+        event.data["pull_request"],
+        event.data["pull_request"],
+        event.data["pull_request"]["url"],
+        gh,
+        token,
+    )
+
+
 @router.register("issue_comment", action="created")
 async def issue_comment_event(
     event: sansio.Event, gh: GitHubAPI, token: str, *args: Any, **kwargs: Any
