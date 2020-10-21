@@ -116,7 +116,6 @@ TEAM = {
         can_merge=True,
     ),
     ActivityLimitedReviewer(gh_name="timokau", days=1, limit=1),
-    ActivityLimitedReviewer(gh_name="ryantm", days=1, limit=1),
     ActivityLimitedReviewer(gh_name="fgaz", days=7, limit=2),
     ActivityLimitedReviewer(gh_name="glittershark", days=7, limit=2),
     ActivityLimitedReviewer(gh_name="turion", days=7, limit=3),
