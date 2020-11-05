@@ -122,6 +122,7 @@ TEAM = {
     ActivityLimitedReviewer(gh_name="kevincox", days=7, limit=28, can_merge=True),
     ActivityLimitedReviewer(gh_name="turion", days=7, limit=3),
     ActivityLimitedReviewer(gh_name="symphorien", days=7, limit=3),
+    ActivityLimitedReviewer(gh_name="bennyandresen", days=4, limit=2),
 }
 
 
