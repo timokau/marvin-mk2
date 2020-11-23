@@ -7,11 +7,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - uses: cachix/install-nix-action@v10
+    - uses: cachix/install-nix-action@v12
     - run: nix-build -I nixpkgs=channel:nixpkgs-unstable pre-commit.nix
   tests:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - uses: cachix/install-nix-action@v10
+    - uses: cachix/install-nix-action@v12
     - run: nix-shell -I nixpkgs=channel:nixpkgs-unstable --run 'python3 -m pytest'
