@@ -23,12 +23,20 @@ AWAITING_MERGER_TIMEOUT_SECONDS = 60 * 60 * 24 * 3  # three days
 REVIEW_REMINDER_TEXT = """
 **Reminder: Please review!**
 
-This Pull Request is awaiting review. If you are the assigned reviewer, please have a look. Try to find another reviewer if necessary. If you can't, please say so. If the status is not accurate, please change it. If nothing happens, this PR will be put back in the `needs_reviewer` queue in one day.
+This Pull Request is awaiting review. If you are the assigned reviewer, please have a look. Try to find another reviewer if necessary. If you can't, please say so. If the status is not accurate, please change it. If nothing happens, this PR ~will be~ should be put back in the `needs_reviewer` queue in one day.
+
+---
+
+Note: This feature is currently broken. The bot will not actually change the status. If you see this message multiple times, please request a status change manually.
 """.strip()
 MERGE_REMINDER_TEXT = """
 **Reminder: Please review!**
 
-Reminder: This Pull Request is **awaiting merger**. If you are the assigned reviewer with commit permission, please have a look. If you can't, please say so. If the status is not accurate, please change it. If nothing happens, this PR will be put back in the `needs_reviewer` queue in one day.
+Reminder: This Pull Request is **awaiting merger**. If you are the assigned reviewer with commit permission, please have a look. If you can't, please say so. If the status is not accurate, please change it. If nothing happens, this PR ~will be~ should be put back in the `needs_reviewer` queue in one day.
+
+---
+
+Note: This feature is currently broken. The bot will not actually change the status. If you see this message multiple times, please request a status change manually.
 """.strip()
 
 
