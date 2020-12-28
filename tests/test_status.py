@@ -123,7 +123,7 @@ async def test_does_not_crash_on_empty_pull_request_summary() -> None:
         "review": {
             "body": None,
             "state": "changes_requested",
-            "user": {"id": 42, "login": "somebody"},
+            "user": {"id": 43, "login": "somebody-else"},
         },
     }
     event = sansio.Event(data, event="pull_request_review", delivery_id="1")
@@ -215,6 +215,27 @@ async def test_sets_to_awaiting_reviewer_on_review_submitted() -> None:
     assert set(gh.delete_urls) == {
         "pr-url/labels/needs_reviewer",
     }
+
+
+async def test_no_changes_on_self_review_submitted() -> None:
+    data = {
+        "action": "submitted",
+        "pull_request": {
+            "url": "pr-url",
+            "user": {"id": 42, "login": "author"},
+            "labels": [{"name": "marvin"}, {"name": "needs_reviewer"}],
+        },
+        "review": {
+            "body": None,
+            "state": "comment",
+            "user": {"id": 42, "login": "author"},
+        },
+    }
+    event = sansio.Event(data, event="pull_request_review", delivery_id="1")
+    gh = GitHubAPIMock()
+    await main.router.dispatch(event, gh, token="fake-token")
+    assert len(gh.post_data) == 0
+    assert len(gh.delete_urls) == 0
 
 
 async def test_sets_to_needs_reviewer_when_marked_as_ready() -> None:
