@@ -98,6 +98,15 @@ async def pull_request_review_submitted(
         return
 
     labels = {label["name"] for label in event.data["pull_request"]["labels"]}
+    issue = event.data["pull_request"]
+    comment = event.data["review"]
+    by_pr_author = issue["user"]["id"] == comment["user"]["id"]
+    if by_pr_author:
+        # A self-review is sometimes used to highlight some part of the
+        # changes. It generally does not indicate that the PR has a reviewer or
+        # that changes are necessary.
+        return
+
     if event.data["review"]["state"] == "changes_requested":
         await gh_util.set_issue_status(
             event.data["pull_request"], "awaiting_changes", gh, token
