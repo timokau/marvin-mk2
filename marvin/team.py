@@ -133,6 +133,7 @@ TEAM = {
     ActivityLimitedReviewer(
         gh_name="supersandro2000", days=1, limit=25, can_merge=True
     ),
+    ActivityLimitedReviewer(gh_name="asymmetric", days=7, limit=3)
 }
 
 
