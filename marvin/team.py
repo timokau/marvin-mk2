@@ -123,7 +123,6 @@ TEAM = {
     ActivityLimitedReviewer(gh_name="turion", days=7, limit=3),
     ActivityLimitedReviewer(gh_name="symphorien", days=7, limit=3),
     ActivityLimitedReviewer(gh_name="bennyandresen", days=4, limit=2),
-    ActivityLimitedReviewer(gh_name="kisik21", days=2, limit=4),
     ActivityLimitedReviewer(gh_name="Ekleog", days=3, limit=1),
     ActivityLimitedReviewer(gh_name="Ekleog", days=3, limit=3, can_merge=True),
     ActivityLimitedReviewer(gh_name="lovesegfault", days=3, limit=1),
